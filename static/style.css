@@ -1,0 +1,86 @@
+/* styles.css */
+body {
+    background-color: #1e1e1e;
+    color: #c7c7c7;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    width: 100%;
+    max-width: 1140px; /* Limit the maximum width */
+    margin: 0 auto; /* Center the container */
+    padding: 20px;
+    background-color: #2e2e2e;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+h1 {
+    text-align: center;
+    color: #f0f0f0;
+}
+
+table {
+    max-width: 1200px;
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+table, th, td {
+    border: 1px solid #ff0000;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #3e3e3e;
+}
+
+tr:nth-child(even) {
+    background-color: #3e3e3e;
+}
+
+tr:nth-child(odd) {
+    background-color: #2e2e2e;
+}
+
+form {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: #f0f0f0;
+}
+
+input[type="text"], select {
+    width: 200px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background-color: #1e1e1e;
+    color: #c7c7c7;
+}
+
+button {
+    width: 100px;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    background-color: #ff0000;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #cc0000;
+}
