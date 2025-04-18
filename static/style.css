@@ -1,8 +1,8 @@
 /* styles.css */
 body {
-    background-color: #1e1e1e;
-    color: #c7c7c7;
-    font-family: Arial, sans-serif;
+    background-color: #121212; /* Darker background for a modern look */
+    color: #e0e0e0; /* Softer text color for better readability */
+    font-family: 'Roboto', sans-serif; /* Modern font */
     margin: 0;
     padding: 0;
 }
@@ -19,39 +19,60 @@ body {
 
 h1 {
     text-align: center;
-    color: #f0f0f0;
+    color: #ff4d4d; /* Darker red accent for the title */
+    font-size: 2.5rem; /* Larger title for emphasis */
+    margin-bottom: 20px;
 }
 
 table {
     max-width: 1200px;
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate; /* Separate borders for a cleaner look */
+    border-spacing: 0;
     margin-bottom: 20px;
-}
-
-table, th, td {
-    border: 1px solid #ff0000;
+    background-color: #1e1e1e; /* Slightly lighter background for the table */
+    border-radius: 8px; /* Rounded corners for a modern feel */
+    overflow: hidden; /* Ensure rounded corners are visible */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* Subtle shadow for depth */
 }
 
 th, td {
-    padding: 10px;
+    padding: 15px; /* Increased padding for better spacing */
     text-align: left;
+    border-bottom: 1px solid #333; /* Subtle border for row separation */
 }
 
 th {
-    background-color: #3e3e3e;
+    background-color: #2a2a2a; /* Slightly lighter header background */
+    color: #ff4d4d; /* Darker red accent for headers */
+    font-weight: bold;
+    text-transform: uppercase; /* Modern uppercase headers */
+}
+
+th:nth-child(2), td:nth-child(2) {
+    width: 150px; /* Adjust width for the IP Address column */
 }
 
 tr:nth-child(even) {
-    background-color: #3e3e3e;
+    background-color: #252525; /* Slightly lighter for alternating rows */
 }
 
 tr:nth-child(odd) {
     background-color: #2e2e2e;
 }
 
+tr:hover {
+    background-color: #333; /* Highlight row on hover */
+    transition: background-color 0.3s ease; /* Smooth transition */
+}
+
+td:last-child, th:last-child {
+    text-align: center;
+    width: 150px; /* Adjust width for the buttons column */
+}
+
 form {
-    margin-bottom: 20px;
+    margin-bottom: 10px; /* Reduced margin for better spacing */
 }
 
 label {
@@ -61,26 +82,28 @@ label {
 }
 
 input[type="text"], select {
-    width: 200px;
+    width: 100%; /* Full width for better alignment */
     padding: 10px;
     margin-bottom: 10px;
     border: 1px solid #444;
     border-radius: 4px;
     background-color: #1e1e1e;
-    color: #c7c7c7;
+    color: #e0e0e0; /* Softer text color */
+    font-size: 14px;
 }
 
 button {
-    width: 100px;
+    width: 100%;
     padding: 10px;
     border: none;
     border-radius: 4px;
-    background-color: #ff0000;
+    background-color: #b30000; /* Darker red for buttons */
     color: #fff;
-    font-size: 16px;
+    font-size: 14px;
     cursor: pointer;
+    transition: background-color 0.3s ease; /* Smooth hover effect */
 }
 
 button:hover {
-    background-color: #cc0000;
+    background-color: #800000; /* Slightly darker red on hover */
 }
