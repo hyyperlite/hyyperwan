@@ -121,17 +121,50 @@ def apply_qdisc(interface, latency=None, loss=None):
         
 def apply_bandwidth(interface, bandwidth):
     if bandwidth:
-        remove_bandwidth(interface)  # Remove existing bandwidth setting
-        result = subprocess.run(['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'root', 'handle', '1:', 'htb'], capture_output=True, text=True)
-        log_command(['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'root', 'handle', '1:', 'htb'], result.stdout)
+        # Check if HTB qdisc already exists
+        result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface, 'root'], capture_output=True, text=True)
+        if 'htb' not in result.stdout:
+            # Add HTB qdisc if it doesn't exist
+            result = subprocess.run(['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'root', 'handle', '1:', 'htb', 'default', '1'], capture_output=True, text=True)
+            log_command(['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'root', 'handle', '1:', 'htb', 'default', '1'], result.stdout)
+            if result.returncode != 0:
+                flash(f"Error setting up root qdisc: {result.stderr}")
+                return
+
+        # Check if class exists
+        result = subprocess.run(['tc', 'class', 'show', 'dev', interface, 'classid', '1:1'], capture_output=True, text=True)
+        if '1:1' not in result.stdout:
+            # Add class if it doesn't exist
+            result = subprocess.run(['sudo', 'tc', 'class', 'add', 'dev', interface, 'parent', '1:', 'classid', '1:1', 'htb', 'rate', bandwidth], capture_output=True, text=True)
+            log_command(['sudo', 'tc', 'class', 'add', 'dev', interface, 'parent', '1:', 'classid', '1:1', 'htb', 'rate', bandwidth], result.stdout)
+            if result.returncode != 0:
+                flash(f"Error applying bandwidth: {result.stderr}")
+                return
+        else:
+             # Change class if it does exist
+            result = subprocess.run(['sudo', 'tc', 'class', 'change', 'dev', interface, 'parent', '1:', 'classid', '1:1', 'htb', 'rate', bandwidth], capture_output=True, text=True)
+            log_command(['sudo', 'tc', 'class', 'change', 'dev', interface, 'parent', '1:', 'classid', '1:1', 'htb', 'rate', bandwidth], result.stdout)
+            if result.returncode != 0:
+                flash(f"Error applying bandwidth: {result.stderr}")
+                return
+
+        # Add filter to direct all traffic to the class
+        result = subprocess.run(['sudo', 'tc', 'filter', 'add', 'dev', interface, 'protocol', 'ip', 'parent', '1:', 'prio', '1', 'u32', 'match', 'ip', 'dst', '0.0.0.0/0', 'flowid', '1:1'], capture_output=True, text=True)
+        log_command(['sudo', 'tc', 'filter', 'add', 'dev', interface, 'protocol', 'ip', 'parent', '1:', 'prio', '1', 'u32', 'match', 'ip', 'dst', '0.0.0.0/0', 'flowid', '1:1'], result.stdout)
         if result.returncode != 0:
-            flash(f"Error setting up root qdisc: {result.stderr}")
-        result = subprocess.run(['sudo', 'tc', 'class', 'add', 'dev', interface, 'parent', '1:', 'classid', '1:1', 'htb', 'rate', bandwidth], capture_output=True, text=True)
-        log_command(['sudo', 'tc', 'class', 'add', 'dev', interface, 'parent', '1:', 'classid', '1:1', 'htb', 'rate', bandwidth], result.stdout)
-        if result.returncode != 0:
-            flash(f"Error applying bandwidth: {result.stderr}")
+            flash(f"Error applying filter: {result.stderr}")
+            return
 
 def remove_bandwidth(interface):
+    # Remove filter
+    result = subprocess.run(['sudo', 'tc', 'filter', 'del', 'dev', interface, 'protocol', 'ip', 'parent', '1:', 'prio', '1', 'u32', 'match', 'ip', 'dst', '0.0.0.0/0', 'flowid', '1:1'], capture_output=True, text=True)
+    log_command(['sudo', 'tc', 'filter', 'del', 'dev', interface, 'protocol', 'ip', 'parent', '1:', 'prio', '1', 'u32', 'match', 'ip', 'dst', '0.0.0.0/0', 'flowid', '1:1'], result.stdout)
+    
+    # Remove class
+    result = subprocess.run(['sudo', 'tc', 'class', 'del', 'dev', interface, 'classid', '1:1', 'parent', '1:'], capture_output=True, text=True)
+    log_command(['sudo', 'tc', 'class', 'del', 'dev', interface, 'classid', '1:1', 'parent', '1:'], result.stdout)
+
+    # Remove HTB qdisc
     result = subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'handle', '1:'], capture_output=True, text=True)
     log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'handle', '1:'], result.stdout)
     if result.returncode != 0:
@@ -140,7 +173,7 @@ def remove_bandwidth(interface):
 def remove_degradations(interface):
     result = subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], capture_output=True, text=True)
     log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], result.stdout)
-    if result.returncode != 0:
+    if result.returncode != 0 and "Cannot find device" not in result.stderr:
         flash(f"Error removing qdisc: {result.stderr}")
     remove_bandwidth(interface)
 
