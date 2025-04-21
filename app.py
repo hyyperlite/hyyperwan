@@ -35,9 +35,9 @@ def list_interfaces():
                 ip_address = addr_info['local']
                 break
         if ip_address:
-            latency = get_latency(interface_name)
-            loss = get_loss(interface_name)
-            interfaces.append({'name': interface_name, 'ip': ip_address, 'latency': latency, 'loss': loss})
+            # Get current network condition settings
+            latency, loss, jitter = get_qdisc_settings(interface_name)
+            interfaces.append({'name': interface_name, 'ip': ip_address, 'latency': latency, 'loss': loss, 'jitter': jitter})
 
     return interfaces
 
@@ -59,12 +59,16 @@ def get_qdisc_settings(interface):
     result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
     output = result.stdout
     log_command(['tc', 'qdisc', 'show', 'dev', interface], output)
-    latency_match = re.search(r'delay (\d+ms|\d+us)', output)
+    
+    # Improved regex patterns for latency, jitter and loss
+    latency_match = re.search(r'delay (\d+(?:ms|us))', output)
+    jitter_match = re.search(r'delay \d+(?:ms|us) (\d+(?:ms|us))', output)
     loss_match = re.search(r'loss (\d+)%', output)
-    jitter_match = re.search(r'delay \d+ms (\d+ms)', output)  # Extract jitter if present
+    
     latency = latency_match.group(1) if latency_match else '0ms'
     loss = loss_match.group(1) + '%' if loss_match else '0%'
     jitter = jitter_match.group(1) if jitter_match else '0ms'
+    
     return latency, loss, jitter
 
 def apply_qdisc(interface, latency=None, loss=None, jitter=None):
