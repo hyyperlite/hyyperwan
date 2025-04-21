@@ -17,6 +17,60 @@ def log_command(command, output):
     logging.info(f"Command: {' '.join(command)}")
     logging.info(f"Output: {output}")
 
+# Validation functions
+def validate_latency_jitter(value, field_name):
+    """
+    Validate latency and jitter inputs:
+    - Should be a whole number
+    - Up to 6 digits max
+    - Can optionally end with 'ms' or 'MS'
+    
+    Returns (is_valid, cleaned_value, error_message)
+    """
+    if not value or value.strip() == '':
+        return True, None, None  # Empty value is valid
+    
+    # Remove 'ms' or 'MS' if present
+    if value.upper().endswith('MS'):
+        value = value[:-2]
+    
+    # Check if it's a valid whole number
+    if not value.isdigit():
+        return False, None, f"{field_name} must be a whole number"
+    
+    # Check length (up to 6 digits)
+    if len(value) > 6:
+        return False, None, f"{field_name} cannot exceed 6 digits"
+    
+    return True, value, None
+
+def validate_loss(value):
+    """
+    Validate loss input:
+    - Should be a whole number
+    - Between 0 and 100
+    - Can optionally end with '%'
+    
+    Returns (is_valid, cleaned_value, error_message)
+    """
+    if not value or value.strip() == '':
+        return True, None, None  # Empty value is valid
+    
+    # Remove '%' if present
+    if value.endswith('%'):
+        value = value[:-1]
+    
+    # Check if it's a valid whole number
+    if not value.isdigit():
+        return False, None, "Loss must be a whole number"
+    
+    # Check range (0-100)
+    value_int = int(value)
+    if value_int < 0 or value_int > 100:
+        return False, None, "Loss must be between 0 and 100"
+    
+    return True, value, None
+
 def list_interfaces():
     interfaces = []
     result = subprocess.run(['ip', '-j', 'addr'], capture_output=True, text=True)
@@ -124,12 +178,48 @@ def index():
 @app.route('/apply', methods=['POST'], endpoint='apply_interface')
 def apply():
     interface = request.form['interface'].split(' ')[0]  # Extract the interface name
+    
+    # Get form values
     latency = request.form.get('latency')
     loss = request.form.get('loss')
-    jitter = request.form.get('jitter')  # Add jitter parameter
-
+    jitter = request.form.get('jitter')
+    
+    # Validate inputs
+    validation_errors = []
+    
+    # Validate latency
+    latency_valid, latency_clean, latency_error = validate_latency_jitter(latency, 'Latency')
+    if not latency_valid:
+        validation_errors.append(latency_error)
+        latency = None
+    else:
+        latency = latency_clean
+    
+    # Validate jitter
+    jitter_valid, jitter_clean, jitter_error = validate_latency_jitter(jitter, 'Jitter')
+    if not jitter_valid:
+        validation_errors.append(jitter_error)
+        jitter = None
+    else:
+        jitter = jitter_clean
+    
+    # Validate loss
+    loss_valid, loss_clean, loss_error = validate_loss(loss)
+    if not loss_valid:
+        validation_errors.append(loss_error)
+        loss = None
+    else:
+        loss = loss_clean
+    
+    # If there are validation errors, flash them and redirect
+    if validation_errors:
+        for error in validation_errors:
+            flash(error, 'error')
+        return redirect(url_for('index'))
+    
+    # Apply validated settings to qdisc
     apply_qdisc(interface, latency, loss, jitter)
-
+    
     return redirect(url_for('index'))
 
 @app.route('/remove', methods=['POST'], endpoint='remove_interface')
