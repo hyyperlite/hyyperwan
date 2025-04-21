@@ -41,11 +41,10 @@
                         <input type="text" name="latency" placeholder="Latency (e.g., 100ms)">
                         <input type="text" name="loss" placeholder="Loss (e.g., 1%)">
                         <input type="text" name="bandwidth" placeholder="Bandwidth (e.g., 1000Kbit)">
+                        <button type="submit">Apply</button> <!-- Moved Apply button back inside the form -->
                     </form>
                 </td>
                 <td>
-                    <button type="submit" form="apply_interface">Apply</button>
-                    <br> <!-- Added line break to separate buttons -->
                     <form action="{{ url_for('remove_interface') }}" method="post">
                         <input type="hidden" name="interface" value="{{ interface.name }}">
                         <button type="submit">Remove</button>
