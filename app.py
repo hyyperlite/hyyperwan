@@ -72,10 +72,12 @@ def get_loss(interface):
 
 
 def get_bandwidth(interface):
-    # Check if a bandwidth limit has been set using tc class
-    result = subprocess.run(['tc', 'class', 'show', 'dev', interface], capture_output=True, text=True)
+    # Check if a bandwidth limit has been set using tc qdisc
+    result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
     output = result.stdout
-    log_command(['tc', 'class', 'show', 'dev', interface], output)
+    log_command(['tc', 'qdisc', 'show', 'dev', interface], output)
+
+    # Look for a bandwidth limit in the qdisc output
     match = re.search(r'rate (\d+)Kbit', output)
     if match:
         bandwidth_kbit = int(match.group(1))
