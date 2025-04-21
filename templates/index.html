@@ -15,6 +15,7 @@
                 <th>IP Address</th>
                 <th>Latency</th>
                 <th>Loss</th>
+                <th>Jitter</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -25,11 +26,13 @@
                 <td>{{ interface.ip }}</td>
                 <td>{{ interface.latency }}</td>
                 <td>{{ interface.loss }}</td>
+                <td>{{ interface.jitter }}</td>
                 <td>
                     <form id="apply_interface" action="{{ url_for('apply_interface') }}" method="post">
                         <input type="hidden" name="interface" value="{{ interface.name }}">
                         <input type="text" name="latency" placeholder="Latency (e.g., 100ms)">
                         <input type="text" name="loss" placeholder="Loss (e.g., 1%)">
+                        <input type="text" name="jitter" placeholder="Jitter (e.g., 10ms)">
                         <button type="submit">Apply</button>
                     </form>
                     <form action="{{ url_for('remove_interface') }}" method="post">

@@ -61,26 +61,31 @@ def get_qdisc_settings(interface):
     log_command(['tc', 'qdisc', 'show', 'dev', interface], output)
     latency_match = re.search(r'delay (\d+ms|\d+us)', output)
     loss_match = re.search(r'loss (\d+)%', output)
+    jitter_match = re.search(r'delay \d+ms (\d+ms)', output)  # Extract jitter if present
     latency = latency_match.group(1) if latency_match else '0ms'
     loss = loss_match.group(1) + '%' if loss_match else '0%'
-    return latency, loss
+    jitter = jitter_match.group(1) if jitter_match else '0ms'
+    return latency, loss, jitter
 
-def apply_qdisc(interface, latency=None, loss=None):
+def apply_qdisc(interface, latency=None, loss=None, jitter=None):
     # Retrieve current settings
-    current_latency, current_loss = get_qdisc_settings(interface)
+    current_latency, current_loss, current_jitter = get_qdisc_settings(interface)
 
     # Merge new values with existing ones
     latency = latency if latency else current_latency
     loss = loss if loss else current_loss
+    jitter = jitter if jitter else current_jitter
 
-    # Ensure latency is in milliseconds
+    # Ensure latency and jitter are in milliseconds
     if latency and not latency.endswith(('ms', 'us')):
         latency += 'ms'
+    if jitter and not jitter.endswith(('ms', 'us')):
+        jitter += 'ms'
 
-    # Apply latency and loss settings
+    # Apply latency, loss, and jitter settings
     command = ['sudo', 'tc', 'qdisc', 'replace', 'dev', interface, 'root', 'netem']
     if latency != '0ms':
-        command.extend(['delay', latency])
+        command.extend(['delay', latency, jitter])
     if loss != '0%':
         command.extend(['loss', loss])
 
