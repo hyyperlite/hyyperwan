@@ -102,16 +102,23 @@ def get_qdisc_settings(interface):
     return latency, loss
 
 def apply_qdisc(interface, latency=None, loss=None, bandwidth=None):
-    # Remove existing qdisc settings to avoid conflicts
-    remove_degradations(interface)
+    # Retrieve current settings
+    current_latency, current_loss = get_qdisc_settings(interface)
+    current_bandwidth = get_bandwidth(interface)
 
-    # Reapply latency and loss settings
-    command = ['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'root', 'netem']
+    # Merge new values with existing ones
+    latency = latency if latency else current_latency
+    loss = loss if loss else current_loss
+
+    # Ensure latency is in milliseconds
     if latency and not latency.endswith(('ms', 'us')):
         latency += 'ms'
-    if latency:
+
+    # Apply latency and loss settings
+    command = ['sudo', 'tc', 'qdisc', 'replace', 'dev', interface, 'root', 'netem']
+    if latency != '0ms':
         command.extend(['delay', latency])
-    if loss:
+    if loss != '0%':
         command.extend(['loss', loss])
 
     result = subprocess.run(command, capture_output=True, text=True)
