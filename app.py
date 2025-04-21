@@ -13,9 +13,23 @@ app.secret_key = 'your_secret_key'  # Needed for flashing messages
 # Configure logging
 logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 
+# Configure a separate logger for tc-specific items
+tc_logger = logging.getLogger('tc_logger')
+tc_logger.setLevel(logging.INFO)
+tc_handler = logging.FileHandler('tc.log')
+tc_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
+tc_logger.addHandler(tc_handler)
+
+def log_tc_command(command, output):
+    tc_logger.info(f"Command: {' '.join(command)}")
+    tc_logger.info(f"Output: {output}")
+
+# Update existing tc-related logging to use the new tc_logger
 def log_command(command, output):
     logging.info(f"Command: {' '.join(command)}")
     logging.info(f"Output: {output}")
+    if 'tc' in command[0]:  # Log tc-specific commands to tc.log
+        log_tc_command(command, output)
 
 def list_interfaces():
     interfaces = []
