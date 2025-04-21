@@ -110,8 +110,9 @@ def apply():
     interface = request.form['interface'].split(' ')[0]  # Extract the interface name
     latency = request.form.get('latency')
     loss = request.form.get('loss')
+    jitter = request.form.get('jitter')  # Add jitter parameter
 
-    apply_qdisc(interface, latency, loss)
+    apply_qdisc(interface, latency, loss, jitter)
 
     return redirect(url_for('index'))
 
