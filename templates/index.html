@@ -36,7 +36,7 @@
                      {% endif %}
                 </td>
                 <td>
-                    <form action="{{ url_for('apply_interface') }}" method="post">
+                    <form id="apply_interface" action="{{ url_for('apply_interface') }}" method="post">
                         <input type="hidden" name="interface" value="{{ interface.name }}">
                         <input type="text" name="latency" placeholder="Latency (e.g., 100ms)">
                         <input type="text" name="loss" placeholder="Loss (e.g., 1%)">
