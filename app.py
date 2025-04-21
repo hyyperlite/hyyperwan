@@ -120,7 +120,6 @@ def get_qdisc_settings(interface):
 def apply_qdisc(interface, latency=None, loss=None, bandwidth=None):
     # Retrieve current settings
     current_latency, current_loss = get_qdisc_settings(interface)
-    current_bandwidth = get_bandwidth(interface)
 
     # Merge new values with existing ones
     latency = latency if latency else current_latency
@@ -130,8 +129,26 @@ def apply_qdisc(interface, latency=None, loss=None, bandwidth=None):
     if latency and not latency.endswith(('ms', 'us')):
         latency += 'ms'
 
-    # Apply latency and loss settings
-    command = ['sudo', 'tc', 'qdisc', 'replace', 'dev', interface, 'root', 'netem']
+    # Remove existing qdisc to avoid conflicts
+    remove_degradations(interface)
+
+    # Add HTB root qdisc
+    command = ['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'root', 'handle', '1:', 'htb', 'default', '10']
+    result = subprocess.run(command, capture_output=True, text=True)
+    log_command(command, result.stdout)
+    if result.returncode != 0:
+        flash(f"Error setting up root qdisc: {result.stderr}")
+
+    # Add HTB class for bandwidth shaping
+    if bandwidth:
+        command = ['sudo', 'tc', 'class', 'add', 'dev', interface, 'parent', '1:', 'classid', '1:1', 'htb', 'rate', bandwidth]
+        result = subprocess.run(command, capture_output=True, text=True)
+        log_command(command, result.stdout)
+        if result.returncode != 0:
+            flash(f"Error setting up HTB class: {result.stderr}")
+
+    # Add netem qdisc for loss and latency
+    command = ['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'parent', '1:1', 'handle', '10:', 'netem']
     if latency != '0ms':
         command.extend(['delay', latency])
     if loss != '0%':
@@ -140,12 +157,8 @@ def apply_qdisc(interface, latency=None, loss=None, bandwidth=None):
     result = subprocess.run(command, capture_output=True, text=True)
     log_command(command, result.stdout)
     if result.returncode != 0:
-        flash(f"Error applying qdisc: {result.stderr}")
+        flash(f"Error applying netem qdisc: {result.stderr}")
 
-    # Apply bandwidth limit if specified
-    if bandwidth:
-        apply_bandwidth(interface, bandwidth)
-        
 def apply_bandwidth(interface, bandwidth):
     if bandwidth:
         remove_bandwidth(interface)  # Remove existing bandwidth setting
