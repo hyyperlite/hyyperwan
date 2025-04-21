@@ -90,3 +90,12 @@ button:hover {
 button + br + button {
     margin-top: 10px; /* Add vertical spacing between buttons */
 }
+
+td form {
+    display: inline-block; /* Ensure forms are displayed inline */
+    margin-right: 10px; /* Add spacing between forms */
+}
+
+td form button {
+    margin-bottom: 0; /* Remove extra margin to align buttons */
+}
