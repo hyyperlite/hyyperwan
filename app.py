@@ -73,26 +73,42 @@ def validate_loss(value):
 
 def list_interfaces():
     interfaces = []
-    result = subprocess.run(['ip', '-j', 'addr'], capture_output=True, text=True)
-    output = result.stdout
-    log_command(['ip', '-j', 'addr'], output)
-    data = json.loads(output)
-
-    for interface in data:
-        interface_name = interface['ifname']
-        if interface_name == 'lo':
-            continue  # Skip interfaces with the name 'lo'
+    try:
+        result = subprocess.run(['ip', '-j', 'addr'], capture_output=True, text=True)
+        output = result.stdout
+        log_command(['ip', '-j', 'addr'], output)
         
-        ip_address = None
-        for addr_info in interface.get('addr_info', []):
-            if addr_info['family'] == 'inet':
-                ip_address = addr_info['local']
-                break
-        if ip_address:
-            # Get current network condition settings
-            latency, loss, jitter = get_qdisc_settings(interface_name)
-            interfaces.append({'name': interface_name, 'ip': ip_address, 'latency': latency, 'loss': loss, 'jitter': jitter})
-
+        try:
+            data = json.loads(output)
+            
+            for interface in data:
+                interface_name = interface['ifname']
+                if interface_name == 'lo':
+                    continue  # Skip interfaces with the name 'lo'
+                
+                ip_address = None
+                for addr_info in interface.get('addr_info', []):
+                    if addr_info['family'] == 'inet':
+                        ip_address = addr_info['local']
+                        break
+                if ip_address:
+                    try:
+                        # Get current network condition settings
+                        latency, loss, jitter = get_qdisc_settings(interface_name)
+                        interfaces.append({'name': interface_name, 'ip': ip_address, 'latency': latency, 'loss': loss, 'jitter': jitter})
+                    except Exception as e:
+                        # If we can't get settings for one interface, still show it with default values
+                        logging.error(f"Error getting settings for interface {interface_name}: {str(e)}")
+                        interfaces.append({'name': interface_name, 'ip': ip_address, 'latency': '0ms', 'loss': '0%', 'jitter': '0ms'})
+        
+        except json.JSONDecodeError as e:
+            logging.error(f"Error parsing JSON output from ip command: {str(e)}")
+            flash("Error retrieving network interfaces", "error")
+    
+    except Exception as e:
+        logging.error(f"Error listing interfaces: {str(e)}")
+        flash("Error retrieving network interfaces", "error")
+    
     return interfaces
 
 def get_latency(interface):
@@ -110,27 +126,34 @@ def get_loss(interface):
     return match.group(1) + '%' if match else '0%'
 
 def get_qdisc_settings(interface):
-    result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
-    output = result.stdout
-    log_command(['tc', 'qdisc', 'show', 'dev', interface], output)
-    
-    # Improved regex patterns for latency, jitter and loss
-    latency_match = re.search(r'delay (\d+(?:ms|us))', output)
-    # Updated jitter regex to handle the double space and any spacing between latency and jitter
-    jitter_match = re.search(r'delay \d+(?:ms|us)\s+(\d+(?:ms|us))', output)
-    loss_match = re.search(r'loss (\d+)%', output)
-    
-    latency = latency_match.group(1) if latency_match else '0ms'
-    loss = loss_match.group(1) + '%' if loss_match else '0%'
-    jitter = jitter_match.group(1) if jitter_match else '0ms'
-    
-    # For debugging - log the matched jitter value
-    if jitter_match:
-        logging.info(f"Captured jitter: {jitter}")
-    else:
-        logging.info("No jitter found in tc output")
-    
-    return latency, loss, jitter
+    try:
+        result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
+        output = result.stdout
+        log_command(['tc', 'qdisc', 'show', 'dev', interface], output)
+        
+        # Improved regex patterns for latency, jitter and loss
+        latency_match = re.search(r'delay (\d+(?:ms|us))', output)
+        # Updated jitter regex to handle the double space and any spacing between latency and jitter
+        jitter_match = re.search(r'delay \d+(?:ms|us)\s+(\d+(?:ms|us))', output)
+        loss_match = re.search(r'loss (\d+)%', output)
+        
+        latency = latency_match.group(1) if latency_match else '0ms'
+        loss = loss_match.group(1) + '%' if loss_match else '0%'
+        jitter = jitter_match.group(1) if jitter_match else '0ms'
+        
+        # For debugging - log the matched jitter value
+        if jitter_match:
+            logging.info(f"Captured jitter: {jitter}")
+        else:
+            logging.info("No jitter found in tc output")
+        
+        return latency, loss, jitter
+    except subprocess.SubprocessError as e:
+        logging.error(f"Error executing tc command for interface {interface}: {str(e)}")
+        return '0ms', '0%', '0ms'
+    except Exception as e:
+        logging.error(f"Error getting qdisc settings for interface {interface}: {str(e)}")
+        return '0ms', '0%', '0ms'
 
 def apply_qdisc(interface, latency=None, loss=None, jitter=None):
     # Retrieve current settings
