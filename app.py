@@ -62,12 +62,19 @@ def get_qdisc_settings(interface):
     
     # Improved regex patterns for latency, jitter and loss
     latency_match = re.search(r'delay (\d+(?:ms|us))', output)
-    jitter_match = re.search(r'delay \d+(?:ms|us) (\d+(?:ms|us))', output)
+    # Updated jitter regex to handle the double space and any spacing between latency and jitter
+    jitter_match = re.search(r'delay \d+(?:ms|us)\s+(\d+(?:ms|us))', output)
     loss_match = re.search(r'loss (\d+)%', output)
     
     latency = latency_match.group(1) if latency_match else '0ms'
     loss = loss_match.group(1) + '%' if loss_match else '0%'
     jitter = jitter_match.group(1) if jitter_match else '0ms'
+    
+    # For debugging - log the matched jitter value
+    if jitter_match:
+        logging.info(f"Captured jitter: {jitter}")
+    else:
+        logging.info("No jitter found in tc output")
     
     return latency, loss, jitter
 
