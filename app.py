@@ -85,9 +85,14 @@ def apply_qdisc(interface, latency=None, loss=None, jitter=None):
     # Apply latency, loss, and jitter settings
     command = ['sudo', 'tc', 'qdisc', 'replace', 'dev', interface, 'root', 'netem']
     if latency != '0ms':
-        command.extend(['delay', latency, jitter])  # Append jitter correctly after latency
+        if jitter != '0ms':
+            # Format: delay <latency> <jitter>
+            command.extend(['delay', latency, jitter])
+        else:
+            # Just latency without jitter
+            command.extend(['delay', latency])
     if loss != '0%':
-        command.extend(['loss', loss])
+        command.extend(['loss', loss.replace('%', '')])
 
     result = subprocess.run(command, capture_output=True, text=True)
     log_command(command, result.stdout)
