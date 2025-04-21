@@ -112,18 +112,26 @@ def list_interfaces():
     return interfaces
 
 def get_latency(interface):
-    result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
-    output = result.stdout
-    log_command(['tc', 'qdisc', 'show', 'dev', interface], output)
-    match = re.search(r'delay (\d+ms|\d+us)', output)
-    return match.group(1) if match else '0ms'
+    try:
+        result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
+        output = result.stdout
+        log_command(['tc', 'qdisc', 'show', 'dev', interface], output)
+        match = re.search(r'delay (\d+ms|\d+us)', output)
+        return match.group(1) if match else '0ms'
+    except Exception as e:
+        logging.error(f"Error getting latency for interface {interface}: {str(e)}")
+        return '0ms'
 
 def get_loss(interface):
-    result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
-    output = result.stdout
-    log_command(['tc', 'qdisc', 'show', 'dev', interface], output)
-    match = re.search(r'loss (\d+)%', output)
-    return match.group(1) + '%' if match else '0%'
+    try:
+        result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
+        output = result.stdout
+        log_command(['tc', 'qdisc', 'show', 'dev', interface], output)
+        match = re.search(r'loss (\d+)%', output)
+        return match.group(1) + '%' if match else '0%'
+    except Exception as e:
+        logging.error(f"Error getting loss for interface {interface}: {str(e)}")
+        return '0%'
 
 def get_qdisc_settings(interface):
     try:
@@ -156,102 +164,155 @@ def get_qdisc_settings(interface):
         return '0ms', '0%', '0ms'
 
 def apply_qdisc(interface, latency=None, loss=None, jitter=None):
-    # Retrieve current settings
-    current_latency, current_loss, current_jitter = get_qdisc_settings(interface)
+    try:
+        # Retrieve current settings
+        current_latency, current_loss, current_jitter = get_qdisc_settings(interface)
 
-    # Merge new values with existing ones
-    latency = latency if latency else current_latency
-    loss = loss if loss else current_loss
-    jitter = jitter if jitter else current_jitter
+        # Merge new values with existing ones
+        latency = latency if latency else current_latency
+        loss = loss if loss else current_loss
+        jitter = jitter if jitter else current_jitter
 
-    # Ensure latency and jitter are in milliseconds
-    if latency and not latency.endswith(('ms', 'us')):
-        latency += 'ms'
-    if jitter and not jitter.endswith(('ms', 'us')):
-        jitter += 'ms'
+        # Ensure latency and jitter are in milliseconds
+        if latency and not latency.endswith(('ms', 'us')):
+            latency += 'ms'
+        if jitter and not jitter.endswith(('ms', 'us')):
+            jitter += 'ms'
 
-    # Apply latency, loss, and jitter settings
-    command = ['sudo', 'tc', 'qdisc', 'replace', 'dev', interface, 'root', 'netem']
-    if latency != '0ms':
-        if jitter != '0ms':
-            # Format: delay <latency> <jitter>
-            command.extend(['delay', latency, jitter])
-        else:
-            # Just latency without jitter
-            command.extend(['delay', latency])
-    if loss != '0%':
-        command.extend(['loss', loss.replace('%', '')])
+        # Apply latency, loss, and jitter settings
+        command = ['sudo', 'tc', 'qdisc', 'replace', 'dev', interface, 'root', 'netem']
+        if latency != '0ms':
+            if jitter != '0ms':
+                # Format: delay <latency> <jitter>
+                command.extend(['delay', latency, jitter])
+            else:
+                # Just latency without jitter
+                command.extend(['delay', latency])
+        if loss != '0%':
+            command.extend(['loss', loss.replace('%', '')])
 
-    result = subprocess.run(command, capture_output=True, text=True)
-    log_command(command, result.stdout)
-    if result.returncode != 0:
-        flash(f"Error applying qdisc: {result.stderr}")
+        try:
+            result = subprocess.run(command, capture_output=True, text=True)
+            log_command(command, result.stdout)
+            if result.returncode != 0:
+                flash(f"Error applying qdisc: {result.stderr}", "error")
+                logging.error(f"Error applying qdisc (return code {result.returncode}): {result.stderr}")
+            else:
+                flash("Network conditions applied successfully", "success")
+        except subprocess.SubprocessError as e:
+            flash(f"Failed to execute tc command: {str(e)}", "error")
+            logging.error(f"Subprocess error when applying qdisc: {str(e)}")
+    except Exception as e:
+        flash(f"Error applying network conditions: {str(e)}", "error")
+        logging.error(f"Error in apply_qdisc: {str(e)}")
 
 def remove_degradations(interface):
-    result = subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], capture_output=True, text=True)
-    log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], result.stdout)
-    if result.returncode != 0:
-        flash(f"Error removing qdisc: {result.stderr}")
+    try:
+        result = subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], capture_output=True, text=True)
+        log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], result.stdout)
+        if result.returncode != 0:
+            flash(f"Error removing qdisc: {result.stderr}", "error")
+            logging.error(f"Error removing qdisc (return code {result.returncode}): {result.stderr}")
+        else:
+            flash("Network conditions removed successfully", "success")
+    except subprocess.SubprocessError as e:
+        flash(f"Failed to execute tc command: {str(e)}", "error")
+        logging.error(f"Subprocess error when removing qdisc: {str(e)}")
+    except Exception as e:
+        flash(f"Error removing network conditions: {str(e)}", "error")
+        logging.error(f"Error in remove_degradations: {str(e)}")
 
 @app.route('/')
 def index():
-    interfaces = list_interfaces()
-    return render_template('index.html', interfaces=interfaces)
+    try:
+        interfaces = list_interfaces()
+        return render_template('index.html', interfaces=interfaces)
+    except Exception as e:
+        logging.error(f"Error in index route: {str(e)}")
+        flash("An error occurred while loading the page", "error")
+        return render_template('index.html', interfaces=[])
 
 @app.route('/apply', methods=['POST'], endpoint='apply_interface')
 def apply():
-    interface = request.form['interface'].split(' ')[0]  # Extract the interface name
-    
-    # Get form values
-    latency = request.form.get('latency')
-    loss = request.form.get('loss')
-    jitter = request.form.get('jitter')
-    
-    # Validate inputs
-    validation_errors = []
-    
-    # Validate latency
-    latency_valid, latency_clean, latency_error = validate_latency_jitter(latency, 'Latency')
-    if not latency_valid:
-        validation_errors.append(latency_error)
-        latency = None
-    else:
-        latency = latency_clean
-    
-    # Validate jitter
-    jitter_valid, jitter_clean, jitter_error = validate_latency_jitter(jitter, 'Jitter')
-    if not jitter_valid:
-        validation_errors.append(jitter_error)
-        jitter = None
-    else:
-        jitter = jitter_clean
-    
-    # Validate loss
-    loss_valid, loss_clean, loss_error = validate_loss(loss)
-    if not loss_valid:
-        validation_errors.append(loss_error)
-        loss = None
-    else:
-        loss = loss_clean
-    
-    # If there are validation errors, flash them and redirect
-    if validation_errors:
-        for error in validation_errors:
-            flash(error, 'error')
+    try:
+        # Check if interface is in the form data
+        if 'interface' not in request.form:
+            flash("No interface selected", "error")
+            return redirect(url_for('index'))
+            
+        interface = request.form['interface'].split(' ')[0]  # Extract the interface name
+        
+        # Get form values
+        latency = request.form.get('latency')
+        loss = request.form.get('loss')
+        jitter = request.form.get('jitter')
+        
+        # Validate inputs
+        validation_errors = []
+        
+        # Validate latency
+        latency_valid, latency_clean, latency_error = validate_latency_jitter(latency, 'Latency')
+        if not latency_valid:
+            validation_errors.append(latency_error)
+            latency = None
+        else:
+            latency = latency_clean
+        
+        # Validate jitter
+        jitter_valid, jitter_clean, jitter_error = validate_latency_jitter(jitter, 'Jitter')
+        if not jitter_valid:
+            validation_errors.append(jitter_error)
+            jitter = None
+        else:
+            jitter = jitter_clean
+        
+        # Validate loss
+        loss_valid, loss_clean, loss_error = validate_loss(loss)
+        if not loss_valid:
+            validation_errors.append(loss_error)
+            loss = None
+        else:
+            loss = loss_clean
+        
+        # If there are validation errors, flash them and redirect
+        if validation_errors:
+            for error in validation_errors:
+                flash(error, 'error')
+            return redirect(url_for('index'))
+        
+        # Apply validated settings to qdisc
+        apply_qdisc(interface, latency, loss, jitter)
+        
         return redirect(url_for('index'))
-    
-    # Apply validated settings to qdisc
-    apply_qdisc(interface, latency, loss, jitter)
-    
-    return redirect(url_for('index'))
+    except Exception as e:
+        logging.error(f"Error in apply route: {str(e)}")
+        flash(f"An unexpected error occurred: {str(e)}", "error")
+        return redirect(url_for('index'))
 
 @app.route('/remove', methods=['POST'], endpoint='remove_interface')
 def remove():
-    interface = request.form['interface'].split(' ')[0]  # Extract the interface name
-    remove_degradations(interface)
-    return redirect(url_for('index'))
+    try:
+        # Check if interface is in the form data
+        if 'interface' not in request.form:
+            flash("No interface selected", "error")
+            return redirect(url_for('index'))
+            
+        interface = request.form['interface'].split(' ')[0]  # Extract the interface name
+        remove_degradations(interface)
+        return redirect(url_for('index'))
+    except Exception as e:
+        logging.error(f"Error in remove route: {str(e)}")
+        flash(f"An unexpected error occurred: {str(e)}", "error")
+        return redirect(url_for('index'))
 
 if __name__ == '__main__':
     host = os.getenv('FLASK_RUN_HOST', '0.0.0.0')
-    port = int(os.getenv('FLASK_RUN_PORT', 8080))
+    
+    # Add safe port parsing with error handling
+    try:
+        port = int(os.getenv('FLASK_RUN_PORT', 8080))
+    except ValueError:
+        logging.error("Invalid port specified in environment variables, using default 8080")
+        port = 8080
+    
     app.run(host=host, port=port, debug=True)
