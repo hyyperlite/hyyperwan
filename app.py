@@ -58,34 +58,37 @@ def get_loss(interface):
 
 
 def get_bandwidth(interface):
+    # Check if a bandwidth limit has been set using tc class
     result = subprocess.run(['tc', 'class', 'show', 'dev', interface], capture_output=True, text=True)
     output = result.stdout
     log_command(['tc', 'class', 'show', 'dev', interface], output)
     match = re.search(r'rate (\d+Kbit)', output)
     if match:
         bandwidth_kbit = int(match.group(1).replace('Kbit', ''))
-    else:
-        # If no bandwidth is set, retrieve the negotiated speed using ethtool
-        try:
-            result = subprocess.run(['ethtool', interface], capture_output=True, text=True, check=True)
-            output = result.stdout
-            log_command(['ethtool', interface], output)
-            match = re.search(r'Speed: (\d+)Mb/s', output)  # Corrected regex pattern
-            if match:
-                bandwidth_kbit = int(match.group(1)) * 1000  # Convert Mb/s to Kbit
-            else:
-                return 'N/A'
-        except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            # ethtool is not installed or failed to run
-            log_command(['ethtool', interface], str(e))
-            return 'N/A'
+        return {
+            'Kb': f"{bandwidth_kbit} Kb",
+            'Mb': f"{round(bandwidth_kbit / 1000)} Mb",
+            'Gb': f"{round(bandwidth_kbit / 1000000)} Gb"
+        }
 
-    bandwidth = {
-        'Kb': f"{bandwidth_kbit} Kb",
-        'Mb': f"{round(bandwidth_kbit / 1000)} Mb",
-        'Gb': f"{round(bandwidth_kbit / 1000000)} Gb"
-    }
-    return bandwidth
+    # If no bandwidth limit is set, retrieve the negotiated speed using ethtool
+    try:
+        result = subprocess.run(['ethtool', interface], capture_output=True, text=True, check=True)
+        output = result.stdout
+        log_command(['ethtool', interface], output)
+        match = re.search(r'Speed: (\d+)Mb/s', output)
+        if match:
+            bandwidth_kbit = int(match.group(1)) * 1000  # Convert Mb/s to Kbit
+            return {
+                'Kb': f"{bandwidth_kbit} Kb",
+                'Mb': f"{round(bandwidth_kbit / 1000)} Mb",
+                'Gb': f"{round(bandwidth_kbit / 1000000)} Gb"
+            }
+        else:
+            return 'N/A'
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        log_command(['ethtool', interface], str(e))
+        return 'N/A'
 
 
 def get_qdisc_settings(interface):
@@ -98,27 +101,27 @@ def get_qdisc_settings(interface):
     loss = loss_match.group(1) + '%' if loss_match else '0%'
     return latency, loss
 
-def apply_qdisc(interface, latency=None, loss=None):
-    current_latency, current_loss = get_qdisc_settings(interface)
-    
-    # Ensure latency is in milliseconds
+def apply_qdisc(interface, latency=None, loss=None, bandwidth=None):
+    # Remove existing qdisc settings to avoid conflicts
+    remove_degradations(interface)
+
+    # Reapply latency and loss settings
+    command = ['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'root', 'netem']
     if latency and not latency.endswith(('ms', 'us')):
         latency += 'ms'
-    
-    latency = latency if latency else current_latency
-    loss = loss if loss else current_loss
-
-    command = ['sudo', 'tc', 'qdisc', 'replace', 'dev', interface, 'root', 'netem']
-    if latency != '0ms':
+    if latency:
         command.extend(['delay', latency])
-    if loss != '0%':
+    if loss:
         command.extend(['loss', loss])
 
     result = subprocess.run(command, capture_output=True, text=True)
     log_command(command, result.stdout)
     if result.returncode != 0:
         flash(f"Error applying qdisc: {result.stderr}")
-        
+
+    # Apply bandwidth limit if specified
+    if bandwidth:
+        apply_bandwidth(interface, bandwidth)
         
 def apply_bandwidth(interface, bandwidth):
     if bandwidth:
@@ -156,12 +159,9 @@ def apply():
     latency = request.form.get('latency')
     loss = request.form.get('loss')
     bandwidth = request.form.get('bandwidth')
-    
-    if latency or loss:
-        apply_qdisc(interface, latency, loss)
-    if bandwidth:
-        apply_bandwidth(interface, bandwidth)
-    
+
+    apply_qdisc(interface, latency, loss, bandwidth)
+
     return redirect(url_for('index'))
 
 @app.route('/remove', methods=['POST'], endpoint='remove_interface')
