@@ -13,23 +13,9 @@ app.secret_key = 'your_secret_key'  # Needed for flashing messages
 # Configure logging
 logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 
-# Configure a separate logger for tc-specific items
-tc_logger = logging.getLogger('tc_logger')
-tc_logger.setLevel(logging.INFO)
-tc_handler = logging.FileHandler('tc.log')
-tc_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
-tc_logger.addHandler(tc_handler)
-
-def log_tc_command(command, output):
-    tc_logger.info(f"Command: {' '.join(command)}")
-    tc_logger.info(f"Output: {output}")
-
-# Update existing tc-related logging to use the new tc_logger
 def log_command(command, output):
     logging.info(f"Command: {' '.join(command)}")
     logging.info(f"Output: {output}")
-    if 'tc' in command[0]:  # Log tc-specific commands to tc.log
-        log_tc_command(command, output)
 
 def list_interfaces():
     interfaces = []
@@ -51,8 +37,7 @@ def list_interfaces():
         if ip_address:
             latency = get_latency(interface_name)
             loss = get_loss(interface_name)
-            bandwidth = get_bandwidth(interface_name)
-            interfaces.append({'name': interface_name, 'ip': ip_address, 'latency': latency, 'loss': loss, 'bandwidth': bandwidth})
+            interfaces.append({'name': interface_name, 'ip': ip_address, 'latency': latency, 'loss': loss})
 
     return interfaces
 
@@ -70,43 +55,6 @@ def get_loss(interface):
     match = re.search(r'loss (\d+)%', output)
     return match.group(1) + '%' if match else '0%'
 
-
-def get_bandwidth(interface):
-    # Check if a bandwidth limit has been set using tc qdisc
-    result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
-    output = result.stdout
-    log_command(['tc', 'qdisc', 'show', 'dev', interface], output)
-
-    # Look for a bandwidth limit in the qdisc output
-    match = re.search(r'rate (\d+)Kbit', output)
-    if match:
-        bandwidth_kbit = int(match.group(1))
-        return {
-            'Kb': f"{bandwidth_kbit} Kb",
-            'Mb': f"{round(bandwidth_kbit / 1000)} Mb",
-            'Gb': f"{round(bandwidth_kbit / 1000000)} Gb"
-        }
-
-    # If no bandwidth limit is set, retrieve the negotiated speed using ethtool
-    try:
-        result = subprocess.run(['ethtool', interface], capture_output=True, text=True, check=True)
-        output = result.stdout
-        log_command(['ethtool', interface], output)
-        match = re.search(r'Speed: (\d+)Mb/s', output)
-        if match:
-            bandwidth_kbit = int(match.group(1)) * 1000  # Convert Mb/s to Kbit
-            return {
-                'Kb': f"{bandwidth_kbit} Kb",
-                'Mb': f"{round(bandwidth_kbit / 1000)} Mb",
-                'Gb': f"{round(bandwidth_kbit / 1000000)} Gb"
-            }
-        else:
-            return 'N/A'
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        log_command(['ethtool', interface], str(e))
-        return 'N/A'
-
-
 def get_qdisc_settings(interface):
     result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
     output = result.stdout
@@ -117,7 +65,7 @@ def get_qdisc_settings(interface):
     loss = loss_match.group(1) + '%' if loss_match else '0%'
     return latency, loss
 
-def apply_qdisc(interface, latency=None, loss=None, bandwidth=None):
+def apply_qdisc(interface, latency=None, loss=None):
     # Retrieve current settings
     current_latency, current_loss = get_qdisc_settings(interface)
 
@@ -129,26 +77,8 @@ def apply_qdisc(interface, latency=None, loss=None, bandwidth=None):
     if latency and not latency.endswith(('ms', 'us')):
         latency += 'ms'
 
-    # Remove existing qdisc to avoid conflicts
-    remove_degradations(interface)
-
-    # Add HTB root qdisc
-    command = ['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'root', 'handle', '1:', 'htb', 'default', '10']
-    result = subprocess.run(command, capture_output=True, text=True)
-    log_command(command, result.stdout)
-    if result.returncode != 0:
-        flash(f"Error setting up root qdisc: {result.stderr}")
-
-    # Add HTB class for bandwidth shaping
-    if bandwidth:
-        command = ['sudo', 'tc', 'class', 'add', 'dev', interface, 'parent', '1:', 'classid', '1:1', 'htb', 'rate', bandwidth]
-        result = subprocess.run(command, capture_output=True, text=True)
-        log_command(command, result.stdout)
-        if result.returncode != 0:
-            flash(f"Error setting up HTB class: {result.stderr}")
-
-    # Add netem qdisc for loss and latency
-    command = ['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'parent', '1:1', 'handle', '10:', 'netem']
+    # Apply latency and loss settings
+    command = ['sudo', 'tc', 'qdisc', 'replace', 'dev', interface, 'root', 'netem']
     if latency != '0ms':
         command.extend(['delay', latency])
     if loss != '0%':
@@ -157,32 +87,13 @@ def apply_qdisc(interface, latency=None, loss=None, bandwidth=None):
     result = subprocess.run(command, capture_output=True, text=True)
     log_command(command, result.stdout)
     if result.returncode != 0:
-        flash(f"Error applying netem qdisc: {result.stderr}")
-
-def apply_bandwidth(interface, bandwidth):
-    if bandwidth:
-        remove_bandwidth(interface)  # Remove existing bandwidth setting
-        result = subprocess.run(['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'root', 'handle', '1:', 'htb'], capture_output=True, text=True)
-        log_command(['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'root', 'handle', '1:', 'htb'], result.stdout)
-        if result.returncode != 0:
-            flash(f"Error setting up root qdisc: {result.stderr}")
-        result = subprocess.run(['sudo', 'tc', 'class', 'add', 'dev', interface, 'parent', '1:', 'classid', '1:1', 'htb', 'rate', bandwidth], capture_output=True, text=True)
-        log_command(['sudo', 'tc', 'class', 'add', 'dev', interface, 'parent', '1:', 'classid', '1:1', 'htb', 'rate', bandwidth], result.stdout)
-        if result.returncode != 0:
-            flash(f"Error applying bandwidth: {result.stderr}")
-
-def remove_bandwidth(interface):
-    result = subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'handle', '1:'], capture_output=True, text=True)
-    log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'handle', '1:'], result.stdout)
-    if result.returncode != 0:
-        flash(f"Error removing bandwidth: {result.stderr}")
+        flash(f"Error applying qdisc: {result.stderr}")
 
 def remove_degradations(interface):
     result = subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], capture_output=True, text=True)
     log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], result.stdout)
     if result.returncode != 0:
         flash(f"Error removing qdisc: {result.stderr}")
-    remove_bandwidth(interface)
 
 @app.route('/')
 def index():
@@ -194,9 +105,8 @@ def apply():
     interface = request.form['interface'].split(' ')[0]  # Extract the interface name
     latency = request.form.get('latency')
     loss = request.form.get('loss')
-    bandwidth = request.form.get('bandwidth')
 
-    apply_qdisc(interface, latency, loss, bandwidth)
+    apply_qdisc(interface, latency, loss)
 
     return redirect(url_for('index'))
 
