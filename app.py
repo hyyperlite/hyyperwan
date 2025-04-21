@@ -62,9 +62,9 @@ def get_bandwidth(interface):
     result = subprocess.run(['tc', 'class', 'show', 'dev', interface], capture_output=True, text=True)
     output = result.stdout
     log_command(['tc', 'class', 'show', 'dev', interface], output)
-    match = re.search(r'rate (\d+Kbit)', output)
+    match = re.search(r'rate (\d+)Kbit', output)
     if match:
-        bandwidth_kbit = int(match.group(1).replace('Kbit', ''))
+        bandwidth_kbit = int(match.group(1))
         return {
             'Kb': f"{bandwidth_kbit} Kb",
             'Mb': f"{round(bandwidth_kbit / 1000)} Mb",
