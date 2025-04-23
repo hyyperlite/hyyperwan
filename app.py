@@ -208,13 +208,22 @@ def apply_qdisc(interface, latency=None, loss=None, jitter=None):
 
 def remove_degradations(interface):
     try:
-        result = subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], capture_output=True, text=True)
-        log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], result.stdout)
-        if result.returncode != 0:
-            flash(f"Error removing qdisc: {result.stderr}", "error")
-            logging.error(f"Error removing qdisc (return code {result.returncode}): {result.stderr}")
+        # First check if there's a netem qdisc to remove
+        check_result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
+        log_command(['tc', 'qdisc', 'show', 'dev', interface], check_result.stdout)
+        
+        # Only attempt to remove if "netem" is in the output
+        if "netem" in check_result.stdout:
+            result = subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], capture_output=True, text=True)
+            log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], result.stdout)
+            if result.returncode != 0:
+                flash(f"Error removing qdisc: {result.stderr}", "error")
+                logging.error(f"Error removing qdisc (return code {result.returncode}): {result.stderr}")
+            else:
+                flash("Network conditions removed successfully", "success")
         else:
-            flash("Network conditions removed successfully", "success")
+            logging.info(f"No netem qdisc to remove on interface {interface}")
+            # Don't show a flash message for interfaces with no settings to remove
     except subprocess.SubprocessError as e:
         flash(f"Failed to execute tc command: {str(e)}", "error")
         logging.error(f"Subprocess error when removing qdisc: {str(e)}")
@@ -315,15 +324,24 @@ def reset_all():
         for interface_info in interfaces:
             try:
                 interface_name = interface_info['name']
-                remove_degradations(interface_name)
-                reset_count += 1
+                
+                # Check if there's a netem qdisc to remove on this interface
+                check_result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface_name], 
+                                             capture_output=True, text=True)
+                
+                # Only count interfaces where netem was actually present
+                if "netem" in check_result.stdout:
+                    remove_degradations(interface_name)
+                    reset_count += 1
+                else:
+                    logging.info(f"No netem qdisc to remove on interface {interface_name}")
             except Exception as e:
                 logging.error(f"Failed to reset interface {interface_info['name']}: {str(e)}")
         
         if reset_count > 0:
             flash(f"Successfully reset network conditions on {reset_count} interfaces", "success")
         else:
-            flash("No interfaces were reset", "info")
+            flash("No active network conditions found to reset", "info")
             
         return redirect(url_for('index'))
     except Exception as e:
