@@ -3,10 +3,16 @@ import json
 import re
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash
-from dotenv import load_dotenv
 import logging
 
-load_dotenv()  # Load environment variables from .env
+# Make dotenv optional
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # Load environment variables from .env
+except ImportError:
+    # dotenv is not installed, just continue without it
+    logging.warning("python-dotenv not installed, continuing without loading .env file")
+
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Needed for flashing messages
 
