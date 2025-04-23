@@ -195,16 +195,16 @@ def apply_qdisc(interface, latency=None, loss=None, jitter=None):
             result = subprocess.run(command, capture_output=True, text=True)
             log_command(command, result.stdout)
             if result.returncode != 0:
-                flash(f"Error applying qdisc: {result.stderr}", "error")
-                logging.error(f"Error applying qdisc (return code {result.returncode}): {result.stderr}")
+                flash(f"Error applying qdisc to interface {interface}: {result.stderr}", "error")
+                logging.error(f"Error applying qdisc to interface {interface} (return code {result.returncode}): {result.stderr}")
             else:
-                flash("Network conditions applied successfully", "success")
+                flash(f"Network conditions applied successfully to interface {interface}", "success")
         except subprocess.SubprocessError as e:
-            flash(f"Failed to execute tc command: {str(e)}", "error")
-            logging.error(f"Subprocess error when applying qdisc: {str(e)}")
+            flash(f"Failed to execute tc command for interface {interface}: {str(e)}", "error")
+            logging.error(f"Subprocess error when applying qdisc to interface {interface}: {str(e)}")
     except Exception as e:
-        flash(f"Error applying network conditions: {str(e)}", "error")
-        logging.error(f"Error in apply_qdisc: {str(e)}")
+        flash(f"Error applying network conditions to interface {interface}: {str(e)}", "error")
+        logging.error(f"Error in apply_qdisc for interface {interface}: {str(e)}")
 
 def remove_degradations(interface):
     try:
@@ -217,19 +217,19 @@ def remove_degradations(interface):
             result = subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], capture_output=True, text=True)
             log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], result.stdout)
             if result.returncode != 0:
-                flash(f"Error removing qdisc: {result.stderr}", "error")
-                logging.error(f"Error removing qdisc (return code {result.returncode}): {result.stderr}")
+                flash(f"Error removing qdisc from interface {interface}: {result.stderr}", "error")
+                logging.error(f"Error removing qdisc from interface {interface} (return code {result.returncode}): {result.stderr}")
             else:
-                flash("Network conditions removed successfully", "success")
+                flash(f"Network conditions removed successfully from interface {interface}", "success")
         else:
             logging.info(f"No netem qdisc to remove on interface {interface}")
             # Don't show a flash message for interfaces with no settings to remove
     except subprocess.SubprocessError as e:
-        flash(f"Failed to execute tc command: {str(e)}", "error")
-        logging.error(f"Subprocess error when removing qdisc: {str(e)}")
+        flash(f"Failed to execute tc command for interface {interface}: {str(e)}", "error")
+        logging.error(f"Subprocess error when removing qdisc from interface {interface}: {str(e)}")
     except Exception as e:
-        flash(f"Error removing network conditions: {str(e)}", "error")
-        logging.error(f"Error in remove_degradations: {str(e)}")
+        flash(f"Error removing network conditions from interface {interface}: {str(e)}", "error")
+        logging.error(f"Error in remove_degradations for interface {interface}: {str(e)}")
 
 @app.route('/')
 def index():
