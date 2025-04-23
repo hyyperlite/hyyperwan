@@ -305,6 +305,32 @@ def remove():
         flash(f"An unexpected error occurred: {str(e)}", "error")
         return redirect(url_for('index'))
 
+@app.route('/reset_all', methods=['POST'], endpoint='reset_all_interfaces')
+def reset_all():
+    try:
+        # Get all interfaces and remove degradations for each
+        interfaces = list_interfaces()
+        reset_count = 0
+        
+        for interface_info in interfaces:
+            try:
+                interface_name = interface_info['name']
+                remove_degradations(interface_name)
+                reset_count += 1
+            except Exception as e:
+                logging.error(f"Failed to reset interface {interface_info['name']}: {str(e)}")
+        
+        if reset_count > 0:
+            flash(f"Successfully reset network conditions on {reset_count} interfaces", "success")
+        else:
+            flash("No interfaces were reset", "info")
+            
+        return redirect(url_for('index'))
+    except Exception as e:
+        logging.error(f"Error in reset_all route: {str(e)}")
+        flash(f"An unexpected error occurred: {str(e)}", "error")
+        return redirect(url_for('index'))
+
 if __name__ == '__main__':
     host = os.getenv('FLASK_RUN_HOST', '0.0.0.0')
     

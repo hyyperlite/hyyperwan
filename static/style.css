@@ -131,3 +131,33 @@ td form button {
     color: #fff;
     border-left: 5px solid #0078ff;
 }
+
+/* Reset All button styles */
+.reset-all-container {
+    text-align: center;
+    margin: 30px 0;
+    padding: 15px;
+}
+
+.reset-all-button {
+    width: 200px;
+    padding: 12px 20px;
+    background-color: #b30000; /* Darker red than regular buttons */
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    border: 2px solid #800000;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.reset-all-button:hover {
+    background-color: #cc0000;
+    transform: translateY(-2px);
+}
+
+.reset-all-button:active {
+    transform: translateY(1px);
+}

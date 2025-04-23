@@ -56,5 +56,12 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Reset All button -->
+    <div class="reset-all-container">
+        <form action="{{ url_for('reset_all_interfaces') }}" method="post">
+            <button type="submit" class="reset-all-button">Reset All Interfaces</button>
+        </form>
+    </div>
 </body>
 </html>
