@@ -1,0 +1,18 @@
+[Unit]
+Description=HyyperWAN Network Condition Control Application
+After=network.target
+
+[Service]
+# Run as root because tc qdisc commands require root privileges
+User=root
+Group=root
+WorkingDirectory=/opt/hyyperwan
+ExecStart=/usr/bin/python3 /opt/hyyperwan/app.py
+Environment="FLASK_APP=app.py"
+Environment="FLASK_RUN_HOST=0.0.0.0"
+Environment="FLASK_RUN_PORT=8080"
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
