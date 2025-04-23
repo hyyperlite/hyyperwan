@@ -178,6 +178,12 @@ def apply_qdisc(interface, latency=None, loss=None, jitter=None):
             latency += 'ms'
         if jitter and not jitter.endswith(('ms', 'us')):
             jitter += 'ms'
+            
+        # If jitter is set but latency is not, set a minimal latency value
+        # because tc netem requires latency to be set when using jitter
+        if jitter != '0ms' and latency == '0ms':
+            latency = '1ms'  # Set a minimal latency value
+            logging.info(f"Setting minimal latency of 1ms to accommodate jitter setting")
 
         # Apply latency, loss, and jitter settings
         command = ['sudo', 'tc', 'qdisc', 'replace', 'dev', interface, 'root', 'netem']
