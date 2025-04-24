@@ -227,6 +227,11 @@ def apply_qdisc(interface, latency=None, loss=None, jitter=None):
         # Retrieve current settings
         current_latency, current_loss, current_jitter = get_qdisc_settings(interface)
 
+        # Get interface alias for flash messages
+        alias = get_interface_alias(interface)
+        # Format interface name with alias for display
+        display_name = f"{interface} ({alias})" if alias and alias != interface else interface
+
         # Merge new values with existing ones
         latency = latency if latency else current_latency
         loss = loss if loss else current_loss
@@ -260,12 +265,12 @@ def apply_qdisc(interface, latency=None, loss=None, jitter=None):
             result = subprocess.run(command, capture_output=True, text=True)
             log_command(command, result.stdout)
             if result.returncode != 0:
-                flash(f"Error applying qdisc to interface {interface}: {result.stderr}", "error")
+                flash(f"Error applying qdisc to interface {display_name}: {result.stderr}", "error")
                 logging.error(f"Error applying qdisc to interface {interface} (return code {result.returncode}): {result.stderr}")
             else:
-                flash(f"Network conditions applied successfully to interface {interface}", "success")
+                flash(f"Network conditions applied successfully to interface {display_name}", "success")
         except subprocess.SubprocessError as e:
-            flash(f"Failed to execute tc command for interface {interface}: {str(e)}", "error")
+            flash(f"Failed to execute tc command for interface {display_name}: {str(e)}", "error")
             logging.error(f"Subprocess error when applying qdisc to interface {interface}: {str(e)}")
     except Exception as e:
         flash(f"Error applying network conditions to interface {interface}: {str(e)}", "error")
