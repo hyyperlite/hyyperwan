@@ -278,6 +278,11 @@ def apply_qdisc(interface, latency=None, loss=None, jitter=None):
 
 def remove_degradations(interface):
     try:
+        # Get interface alias for flash messages
+        alias = get_interface_alias(interface)
+        # Format interface name with alias for display
+        display_name = f"{interface} ({alias})" if alias and alias != interface else interface
+        
         # First check if there's a netem qdisc to remove
         check_result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
         log_command(['tc', 'qdisc', 'show', 'dev', interface], check_result.stdout)
@@ -287,15 +292,15 @@ def remove_degradations(interface):
             result = subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], capture_output=True, text=True)
             log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], result.stdout)
             if result.returncode != 0:
-                flash(f"Error removing qdisc from interface {interface}: {result.stderr}", "error")
+                flash(f"Error removing qdisc from interface {display_name}: {result.stderr}", "error")
                 logging.error(f"Error removing qdisc from interface {interface} (return code {result.returncode}): {result.stderr}")
             else:
-                flash(f"Network conditions removed successfully from interface {interface}", "success")
+                flash(f"Network conditions removed successfully from interface {display_name}", "success")
         else:
             logging.info(f"No netem qdisc to remove on interface {interface}")
             # Don't show a flash message for interfaces with no settings to remove
     except subprocess.SubprocessError as e:
-        flash(f"Failed to execute tc command for interface {interface}: {str(e)}", "error")
+        flash(f"Failed to execute tc command for interface {display_name}: {str(e)}", "error")
         logging.error(f"Subprocess error when removing qdisc from interface {interface}: {str(e)}")
     except Exception as e:
         flash(f"Error removing network conditions from interface {interface}: {str(e)}", "error")
@@ -390,6 +395,7 @@ def reset_all():
         # Get all interfaces and remove degradations for each
         interfaces = list_interfaces()
         reset_count = 0
+        reset_interfaces = []
         
         for interface_info in interfaces:
             try:
@@ -403,13 +409,25 @@ def reset_all():
                 if "netem" in check_result.stdout:
                     remove_degradations(interface_name)
                     reset_count += 1
+                    
+                    # Format the interface name with alias for display
+                    alias = interface_info.get('alias', '')
+                    if alias and alias != interface_name:
+                        reset_interfaces.append(f"{interface_name} ({alias})")
+                    else:
+                        reset_interfaces.append(interface_name)
                 else:
                     logging.info(f"No netem qdisc to remove on interface {interface_name}")
             except Exception as e:
                 logging.error(f"Failed to reset interface {interface_info['name']}: {str(e)}")
         
         if reset_count > 0:
-            flash(f"Successfully reset network conditions on {reset_count} interfaces", "success")
+            # If fewer than 4 interfaces were reset, list them all
+            if reset_count <= 3:
+                interfaces_list = ", ".join(reset_interfaces)
+                flash(f"Successfully reset network conditions on {reset_count} interfaces: {interfaces_list}", "success")
+            else:
+                flash(f"Successfully reset network conditions on {reset_count} interfaces", "success")
         else:
             flash("No active network conditions found to reset", "info")
             
@@ -433,14 +451,20 @@ def update_alias():
         # Load current aliases
         aliases = load_interface_aliases()
         
+        # Get current alias if it exists
+        old_alias = aliases.get(interface_name, '')
+        
         # Update the alias
         if alias:  # If alias is not empty
             aliases[interface_name] = alias
-            flash(f"Alias for {interface_name} set to '{alias}'", "success")
+            if old_alias:
+                flash(f"Alias for {interface_name} changed from '{old_alias}' to '{alias}'", "success")
+            else:
+                flash(f"Alias for {interface_name} set to '{alias}'", "success")
         else:  # If alias is empty, remove the alias
             if interface_name in aliases:
                 del aliases[interface_name]
-                flash(f"Alias for {interface_name} removed", "success")
+                flash(f"Alias for {interface_name} ('{old_alias}') removed", "success")
             else:
                 flash(f"No alias was set for {interface_name}", "info")
         
