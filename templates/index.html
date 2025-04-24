@@ -90,8 +90,8 @@
                         <input type="hidden" name="interface" value="{{ interface.name }}">
                         <button type="submit">Remove</button>
                     </form>
-                    <!-- Add capture button -->
-                    <button type="button" class="capture-button" onclick="openCaptureModal('{{ interface.name }}')">
+                    <!-- Add capture button with interface name and alias -->
+                    <button type="button" class="capture-button" onclick="openCaptureModal('{{ interface.name }}', '{{ interface.alias }}')">
                         Capture
                     </button>
                 </td>
@@ -111,33 +111,50 @@
     <div id="captureModal" class="modal">
         <div class="modal-content">
             <span class="close-button">&times;</span>
-            <h2>Packet Capture</h2>
+            <h2 id="captureModalTitle">Packet Capture</h2>
             <form id="captureForm">
                 <input type="hidden" id="captureInterface" name="interface" value="">
                 
                 <div class="form-group">
                     <label for="hostFilter">Host Filter (comma separated):</label>
                     <input type="text" id="hostFilter" name="host_filter" placeholder="e.g., 192.168.1.10, 10.0.0.5">
+                    <div class="filter-logic">
+                        <span>Multiple hosts:</span>
+                        <label class="radio-label">
+                            <input type="radio" name="host_filter_logic" value="and"> AND
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="host_filter_logic" value="or" checked> OR
+                        </label>
+                    </div>
                 </div>
                 
                 <div class="form-group">
                     <label for="networkFilter">Network Filter (comma separated):</label>
                     <input type="text" id="networkFilter" name="network_filter" placeholder="e.g., 192.168.1.0/24, 10.0.0.0/8">
+                    <div class="filter-logic">
+                        <span>Multiple networks:</span>
+                        <label class="radio-label">
+                            <input type="radio" name="network_filter_logic" value="and"> AND
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="network_filter_logic" value="or" checked> OR
+                        </label>
+                    </div>
                 </div>
                 
                 <div class="form-group">
                     <label for="portFilter">Port Filter (comma separated):</label>
                     <input type="text" id="portFilter" name="port_filter" placeholder="e.g., 80, 443, 22">
-                </div>
-                
-                <div class="form-group">
-                    <label>Filter Logic:</label>
-                    <label class="radio-label">
-                        <input type="radio" name="filter_logic" value="and" checked> AND
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="filter_logic" value="or"> OR
-                    </label>
+                    <div class="filter-logic">
+                        <span>Multiple ports:</span>
+                        <label class="radio-label">
+                            <input type="radio" name="port_filter_logic" value="and"> AND
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="port_filter_logic" value="or" checked> OR
+                        </label>
+                    </div>
                 </div>
                 
                 <div class="form-actions">
@@ -157,19 +174,31 @@
         let startTime = null;
         
         // Open capture modal for an interface
-        function openCaptureModal(interfaceName) {
+        function openCaptureModal(interfaceName, interfaceAlias) {
             const modal = document.getElementById('captureModal');
+            const modalTitle = document.getElementById('captureModalTitle');
             document.getElementById('captureInterface').value = interfaceName;
             document.getElementById('captureStatus').textContent = '';
             document.getElementById('captureStatus').className = 'capture-status';
             document.getElementById('startCaptureBtn').disabled = false;
             document.getElementById('stopCaptureBtn').disabled = true;
             
+            // Update the modal title with interface name and alias
+            if (interfaceAlias && interfaceAlias !== interfaceName && interfaceAlias !== '') {
+                modalTitle.textContent = `Packet Capture: ${interfaceName} (${interfaceAlias})`;
+            } else {
+                modalTitle.textContent = `Packet Capture: ${interfaceName}`;
+            }
+            
             // Reset form fields
             document.getElementById('hostFilter').value = '';
             document.getElementById('networkFilter').value = '';
             document.getElementById('portFilter').value = '';
-            document.querySelector('input[name="filter_logic"][value="and"]').checked = true;
+            
+            // Reset filter logic radio buttons
+            document.querySelector('input[name="host_filter_logic"][value="or"]').checked = true;
+            document.querySelector('input[name="network_filter_logic"][value="or"]').checked = true;
+            document.querySelector('input[name="port_filter_logic"][value="or"]').checked = true;
             
             modal.style.display = 'block';
         }

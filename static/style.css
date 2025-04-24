@@ -284,8 +284,13 @@ td form button {
 }
 
 .radio-label {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     margin-right: 15px;
+}
+
+.radio-label input {
+    margin-right: 5px;
 }
 
 .form-actions {
@@ -345,4 +350,17 @@ button:disabled {
 .capture-status.error {
     background-color: #8b0000;
     color: #fff;
+}
+
+.filter-logic {
+    margin-top: 5px;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+}
+
+.filter-logic span {
+    margin-right: 10px;
+    font-style: italic;
+    color: #aaa;
 }

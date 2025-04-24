@@ -513,20 +513,14 @@ def start_capture():
         host_filter = request.form.get('host_filter', '')
         port_filter = request.form.get('port_filter', '')
         network_filter = request.form.get('network_filter', '')
-        filter_logic = request.form.get('filter_logic', 'and')
+        
+        # Get separate filter logic for each filter type
+        host_filter_logic = request.form.get('host_filter_logic', 'or')
+        network_filter_logic = request.form.get('network_filter_logic', 'or')
+        port_filter_logic = request.form.get('port_filter_logic', 'or')
         
         if not interface:
             return jsonify({'success': False, 'error': 'Interface not specified'}), 400
-        
-        # Check if tcpdump is installed
-        try:
-            check_result = subprocess.run(['which', 'tcpdump'], capture_output=True, text=True)
-            if check_result.returncode != 0:
-                logging.error("tcpdump not found in PATH")
-                return jsonify({'success': False, 'error': 'tcpdump command not found. Please install tcpdump.'}), 500
-        except Exception as e:
-            logging.error(f"Error checking for tcpdump: {str(e)}")
-            return jsonify({'success': False, 'error': f"Error checking for tcpdump: {str(e)}"}), 500
             
         # Get interface alias for display
         alias = get_interface_alias(interface)
@@ -547,34 +541,53 @@ def start_capture():
                 logging.error(f"Error creating capture directory: {str(e)}")
                 return jsonify({'success': False, 'error': f"Cannot create capture directory: {str(e)}"}), 500
         
-        # Build tcpdump filter expression
+        # Build complex tcpdump filter expression with separate logic for each filter type
         filter_parts = []
+        
+        # Process host filter
         if host_filter:
-            hosts = host_filter.replace(',', ' or host ').strip()
-            filter_parts.append(f"host {hosts}")
+            hosts = host_filter.split(',')
+            hosts = [h.strip() for h in hosts if h.strip()]
+            if hosts:
+                if len(hosts) == 1:
+                    filter_parts.append(f"host {hosts[0]}")
+                else:
+                    host_expr = f" {host_filter_logic} ".join([f"host {h}" for h in hosts])
+                    filter_parts.append(f"({host_expr})")
         
+        # Process network filter
         if network_filter:
-            networks = network_filter.replace(',', ' or net ').strip()
-            filter_parts.append(f"net {networks}")
+            networks = network_filter.split(',')
+            networks = [n.strip() for n in networks if n.strip()]
+            if networks:
+                if len(networks) == 1:
+                    filter_parts.append(f"net {networks[0]}")
+                else:
+                    net_expr = f" {network_filter_logic} ".join([f"net {n}" for n in networks])
+                    filter_parts.append(f"({net_expr})")
         
+        # Process port filter
         if port_filter:
-            ports = port_filter.replace(',', ' or port ').strip()
-            filter_parts.append(f"port {ports}")
+            ports = port_filter.split(',')
+            ports = [p.strip() for p in ports if p.strip()]
+            if ports:
+                if len(ports) == 1:
+                    filter_parts.append(f"port {ports[0]}")
+                else:
+                    port_expr = f" {port_filter_logic} ".join([f"port {p}" for p in ports])
+                    filter_parts.append(f"({port_expr})")
         
+        # Combine all parts with AND logic
         filter_expr = ""
         if filter_parts:
-            if filter_logic == 'and':
-                filter_expr = " and ".join(filter_parts) 
-            else:  # 'or'
-                filter_expr = " or ".join(filter_parts)
+            filter_expr = " and ".join(filter_parts)
         
         # Build tcpdump command with packet count limit
         cmd = ['sudo', 'tcpdump', '-i', interface, '-w', pcap_file, '-c', '10000']  # Limit to 10000 packets
         
         # Add filter if present
         if filter_expr:
-            # Important: for complex filter expressions, we need to add them as a separate argument
-            cmd.extend(['-f', filter_expr])
+            cmd.extend([filter_expr])
         
         logging.info(f"Starting capture with command: {' '.join(cmd)}")
         
