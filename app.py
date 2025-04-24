@@ -487,4 +487,20 @@ if __name__ == '__main__':
         logging.error("Invalid port specified in environment variables, using default 8080")
         port = 8080
     
-    app.run(host=host, port=port, debug=True)
+    # Get SSL configuration from environment variables
+    use_https = os.getenv('USE_HTTPS', 'false').lower() == 'true'
+    cert_path = os.getenv('SSL_CERT_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'certificates/cert.pem'))
+    key_path = os.getenv('SSL_KEY_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'certificates/key.pem'))
+    
+    # Check if SSL is enabled and certificates exist
+    if use_https and os.path.exists(cert_path) and os.path.exists(key_path):
+        logging.info(f"Starting application with HTTPS on {host}:{port}")
+        app.run(host=host, port=port, ssl_context=(cert_path, key_path), debug=True)
+    else:
+        if use_https:
+            logging.warning("HTTPS was requested but certificates not found at:")
+            logging.warning(f"Certificate: {cert_path}")
+            logging.warning(f"Key: {key_path}")
+            logging.warning("Falling back to HTTP")
+        logging.info(f"Starting application with HTTP on {host}:{port}")
+        app.run(host=host, port=port, debug=True)
