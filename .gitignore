@@ -11,3 +11,4 @@ docs/_build/
 *.log
 app.log
 hyyperwan.servivce
+interface_aliases.json

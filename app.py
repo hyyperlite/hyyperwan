@@ -19,6 +19,41 @@ app.secret_key = 'your_secret_key'  # Needed for flashing messages
 # Configure logging
 logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 
+# Path to store interface aliases
+ALIASES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'interface_aliases.json')
+
+def load_interface_aliases():
+    """
+    Load interface aliases from the JSON file.
+    Returns a dictionary mapping interface names to their aliases.
+    """
+    try:
+        if os.path.exists(ALIASES_FILE):
+            with open(ALIASES_FILE, 'r') as f:
+                return json.load(f)
+        else:
+            return {}
+    except Exception as e:
+        logging.error(f"Error loading interface aliases: {str(e)}")
+        return {}
+
+def save_interface_aliases(aliases):
+    """
+    Save interface aliases to the JSON file.
+    """
+    try:
+        with open(ALIASES_FILE, 'w') as f:
+            json.dump(aliases, f, indent=2)
+    except Exception as e:
+        logging.error(f"Error saving interface aliases: {str(e)}")
+
+def get_interface_alias(interface_name):
+    """
+    Get the alias for an interface, or return the original name if no alias exists.
+    """
+    aliases = load_interface_aliases()
+    return aliases.get(interface_name, interface_name)
+
 def log_command(command, output):
     logging.info(f"Command: {' '.join(command)}")
     logging.info(f"Output: {output}")
@@ -84,6 +119,9 @@ def list_interfaces():
         output = result.stdout
         log_command(['ip', '-j', 'addr'], output)
         
+        # Load interface aliases
+        aliases = load_interface_aliases()
+        
         try:
             data = json.loads(output)
             
@@ -101,11 +139,26 @@ def list_interfaces():
                     try:
                         # Get current network condition settings
                         latency, loss, jitter = get_qdisc_settings(interface_name)
-                        interfaces.append({'name': interface_name, 'ip': ip_address, 'latency': latency, 'loss': loss, 'jitter': jitter})
+                        # Include both real name and alias in the interface data
+                        interfaces.append({
+                            'name': interface_name, 
+                            'alias': aliases.get(interface_name, ''),
+                            'ip': ip_address, 
+                            'latency': latency, 
+                            'loss': loss, 
+                            'jitter': jitter
+                        })
                     except Exception as e:
                         # If we can't get settings for one interface, still show it with default values
                         logging.error(f"Error getting settings for interface {interface_name}: {str(e)}")
-                        interfaces.append({'name': interface_name, 'ip': ip_address, 'latency': '0ms', 'loss': '0%', 'jitter': '0ms'})
+                        interfaces.append({
+                            'name': interface_name, 
+                            'alias': aliases.get(interface_name, ''),
+                            'ip': ip_address, 
+                            'latency': '0ms', 
+                            'loss': '0%', 
+                            'jitter': '0ms'
+                        })
         
         except json.JSONDecodeError as e:
             logging.error(f"Error parsing JSON output from ip command: {str(e)}")
@@ -359,6 +412,40 @@ def reset_all():
     except Exception as e:
         logging.error(f"Error in reset_all route: {str(e)}")
         flash(f"An unexpected error occurred: {str(e)}", "error")
+        return redirect(url_for('index'))
+
+@app.route('/update_alias', methods=['POST'], endpoint='update_interface_alias')
+def update_alias():
+    try:
+        # Check if required data is present
+        if 'interface' not in request.form or 'alias' not in request.form:
+            flash("Missing interface name or alias", "error")
+            return redirect(url_for('index'))
+            
+        interface_name = request.form['interface']
+        alias = request.form['alias'].strip()
+        
+        # Load current aliases
+        aliases = load_interface_aliases()
+        
+        # Update the alias
+        if alias:  # If alias is not empty
+            aliases[interface_name] = alias
+            flash(f"Alias for {interface_name} set to '{alias}'", "success")
+        else:  # If alias is empty, remove the alias
+            if interface_name in aliases:
+                del aliases[interface_name]
+                flash(f"Alias for {interface_name} removed", "success")
+            else:
+                flash(f"No alias was set for {interface_name}", "info")
+        
+        # Save the updated aliases
+        save_interface_aliases(aliases)
+        
+        return redirect(url_for('index'))
+    except Exception as e:
+        logging.error(f"Error updating interface alias: {str(e)}")
+        flash(f"Failed to update interface alias: {str(e)}", "error")
         return redirect(url_for('index'))
 
 if __name__ == '__main__':

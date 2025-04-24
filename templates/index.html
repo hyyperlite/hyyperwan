@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HyyperWan</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        // Function to toggle alias editing form visibility
+        function toggleAliasForm(interfaceName) {
+            const form = document.getElementById('alias-form-' + interfaceName);
+            const displayElem = document.getElementById('alias-display-' + interfaceName);
+            
+            if (form.style.display === 'none' || form.style.display === '') {
+                form.style.display = 'block';
+                displayElem.style.display = 'none';
+            } else {
+                form.style.display = 'none';
+                displayElem.style.display = 'block';
+            }
+        }
+    </script>
 </head>
 <body>
     <h1>HyyperWan</h1>
@@ -34,7 +49,31 @@
         <tbody>
             {% for interface in interfaces %}
             <tr>
-                <td>{{ interface.name }}</td>
+                <td>
+                    <!-- Interface name with alias display and edit functionality -->
+                    <div id="alias-display-{{ interface.name }}" class="interface-name-display">
+                        <strong>{{ interface.name }}</strong>
+                        {% if interface.alias %}
+                            <br>
+                            <span class="interface-alias">({{ interface.alias }})</span>
+                        {% endif %}
+                        <button type="button" class="alias-edit-button" 
+                                onclick="toggleAliasForm('{{ interface.name }}')">
+                            {% if interface.alias %}Edit{% else %}Add{% endif %} Alias
+                        </button>
+                    </div>
+                    
+                    <!-- Hidden form for editing alias -->
+                    <div id="alias-form-{{ interface.name }}" class="alias-edit-form" style="display: none;">
+                        <form action="{{ url_for('update_interface_alias') }}" method="post">
+                            <input type="hidden" name="interface" value="{{ interface.name }}">
+                            <input type="text" name="alias" value="{{ interface.alias }}" 
+                                   placeholder="Enter interface alias">
+                            <button type="submit">Save</button>
+                            <button type="button" onclick="toggleAliasForm('{{ interface.name }}')">Cancel</button>
+                        </form>
+                    </div>
+                </td>
                 <td>{{ interface.ip }}</td>
                 <td>{{ interface.latency }}</td>
                 <td>{{ interface.loss }}</td>
