@@ -2,7 +2,12 @@ import subprocess
 import json
 import re
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash
+import uuid
+import time
+import threading
+import signal
+import shutil
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
 import logging
 
 # Make dotenv optional
@@ -21,6 +26,30 @@ logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s 
 
 # Path to store interface aliases
 ALIASES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'interface_aliases.json')
+
+# Path to store temporary pcap files - use /tmp directory
+PCAP_DIR = '/tmp/hyyperwan_pcaps'
+# Create the directory if it doesn't exist
+if not os.path.exists(PCAP_DIR):
+    os.makedirs(PCAP_DIR)
+
+# Dictionary to track active captures and completed ones
+active_captures = {}
+completed_captures = {}
+
+def cleanup_pcap_file(filepath, delay=10):
+    """Delete a pcap file after a delay to ensure download completes"""
+    def delete_file():
+        try:
+            time.sleep(delay)
+            if os.path.exists(filepath):
+                os.unlink(filepath)
+                logging.info(f"Deleted packet capture file: {filepath}")
+        except Exception as e:
+            logging.error(f"Error deleting packet capture file: {str(e)}")
+    
+    # Start a thread to delete the file after delay
+    threading.Thread(target=delete_file).start()
 
 def load_interface_aliases():
     """
@@ -476,6 +505,233 @@ def update_alias():
         logging.error(f"Error updating interface alias: {str(e)}")
         flash(f"Failed to update interface alias: {str(e)}", "error")
         return redirect(url_for('index'))
+
+@app.route('/start_capture', methods=['POST'])
+def start_capture():
+    try:
+        interface = request.form.get('interface')
+        host_filter = request.form.get('host_filter', '')
+        port_filter = request.form.get('port_filter', '')
+        network_filter = request.form.get('network_filter', '')
+        filter_logic = request.form.get('filter_logic', 'and')
+        
+        if not interface:
+            return jsonify({'success': False, 'error': 'Interface not specified'}), 400
+        
+        # Check if tcpdump is installed
+        try:
+            check_result = subprocess.run(['which', 'tcpdump'], capture_output=True, text=True)
+            if check_result.returncode != 0:
+                logging.error("tcpdump not found in PATH")
+                return jsonify({'success': False, 'error': 'tcpdump command not found. Please install tcpdump.'}), 500
+        except Exception as e:
+            logging.error(f"Error checking for tcpdump: {str(e)}")
+            return jsonify({'success': False, 'error': f"Error checking for tcpdump: {str(e)}"}), 500
+            
+        # Get interface alias for display
+        alias = get_interface_alias(interface)
+        display_name = f"{interface} ({alias})" if alias and alias != interface else interface
+        
+        # Generate unique ID for this capture
+        capture_id = str(uuid.uuid4())
+        pcap_file = os.path.join(PCAP_DIR, f"capture_{interface}_{capture_id}.pcap")
+        
+        # Ensure capture directory exists with proper permissions
+        if not os.path.exists(PCAP_DIR):
+            try:
+                os.makedirs(PCAP_DIR, exist_ok=True)
+                # Ensure directory is writable
+                os.chmod(PCAP_DIR, 0o755)
+                logging.info(f"Created capture directory: {PCAP_DIR}")
+            except Exception as e:
+                logging.error(f"Error creating capture directory: {str(e)}")
+                return jsonify({'success': False, 'error': f"Cannot create capture directory: {str(e)}"}), 500
+        
+        # Build tcpdump filter expression
+        filter_parts = []
+        if host_filter:
+            hosts = host_filter.replace(',', ' or host ').strip()
+            filter_parts.append(f"host {hosts}")
+        
+        if network_filter:
+            networks = network_filter.replace(',', ' or net ').strip()
+            filter_parts.append(f"net {networks}")
+        
+        if port_filter:
+            ports = port_filter.replace(',', ' or port ').strip()
+            filter_parts.append(f"port {ports}")
+        
+        filter_expr = ""
+        if filter_parts:
+            if filter_logic == 'and':
+                filter_expr = " and ".join(filter_parts) 
+            else:  # 'or'
+                filter_expr = " or ".join(filter_parts)
+        
+        # Build tcpdump command with packet count limit
+        cmd = ['sudo', 'tcpdump', '-i', interface, '-w', pcap_file, '-c', '10000']  # Limit to 10000 packets
+        
+        # Add filter if present
+        if filter_expr:
+            # Important: for complex filter expressions, we need to add them as a separate argument
+            cmd.extend(['-f', filter_expr])
+        
+        logging.info(f"Starting capture with command: {' '.join(cmd)}")
+        
+        # Start capture process with stderr redirected to pipe for error logging
+        process = subprocess.Popen(cmd, stderr=subprocess.PIPE, text=True)
+        
+        # Start a thread to monitor stderr for errors
+        def monitor_stderr():
+            for line in process.stderr:
+                logging.error(f"tcpdump error: {line.strip()}")
+                
+        stderr_thread = threading.Thread(target=monitor_stderr)
+        stderr_thread.daemon = True
+        stderr_thread.start()
+        
+        active_captures[capture_id] = {
+            'process': process,
+            'interface': interface,
+            'display_name': display_name,
+            'file': pcap_file,
+            'start_time': time.time(),
+            'filter': filter_expr,
+            'stderr_thread': stderr_thread
+        }
+        
+        return jsonify({
+            'success': True, 
+            'capture_id': capture_id, 
+            'message': f"Capture started on {display_name}"
+        })
+        
+    except Exception as e:
+        logging.error(f"Error starting packet capture: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/stop_capture/<capture_id>', methods=['POST'])
+def stop_capture(capture_id):
+    try:
+        if capture_id not in active_captures:
+            return jsonify({'success': False, 'error': 'Capture not found'}), 404
+        
+        capture_info = active_captures[capture_id].copy()  # Copy the info
+        process = capture_info['process']
+        
+        # Stop the capture process
+        if process.poll() is None:  # Process is still running
+            process.send_signal(signal.SIGTERM)
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                # Force kill if still running
+                process.kill()
+        
+        # Wait a moment for tcpdump to flush its output
+        time.sleep(1)
+        
+        # Store info in completed_captures for download
+        completed_captures[capture_id] = {
+            'file': capture_info['file'],
+            'interface': capture_info['interface'],
+            'display_name': capture_info['display_name'],
+            'timestamp': time.time()
+        }
+        
+        # Remove from active captures
+        active_captures.pop(capture_id)
+        
+        # Ensure file exists
+        if not os.path.exists(capture_info['file']):
+            logging.error(f"PCAP file not found after capture: {capture_info['file']}")
+            return jsonify({'success': False, 'error': 'Capture file not created. Try again or check tcpdump installation.'}), 500
+            
+        # Get file size for logging
+        file_size = os.path.getsize(capture_info['file'])
+        logging.info(f"Capture completed. File: {capture_info['file']}, Size: {file_size} bytes")
+        
+        return jsonify({
+            'success': True, 
+            'capture_id': capture_id,
+            'file': os.path.basename(capture_info['file']),
+            'message': f"Capture stopped on {capture_info['display_name']}"
+        })
+        
+    except Exception as e:
+        logging.error(f"Error stopping packet capture: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/download_capture/<capture_id>', methods=['GET'])
+def download_capture(capture_id):
+    try:
+        # Check if it's an active capture
+        if capture_id in active_captures:
+            return jsonify({'success': False, 'error': 'Cannot download active capture. Stop it first.'}), 400
+        
+        # First check if we have this capture in our completed captures
+        # This is more reliable than just using the filename from the request
+        if capture_id in completed_captures:
+            capture_info = completed_captures[capture_id]
+            filepath = capture_info['file']
+            filename = os.path.basename(filepath)
+            
+            if os.path.exists(filepath):
+                logging.info(f"Sending capture file: {filepath}")
+                
+                # Schedule file for cleanup after download
+                cleanup_pcap_file(filepath)
+                
+                # After successful download, remove from completed captures
+                completed_captures.pop(capture_id, None)
+                
+                # Return the file
+                return send_file(
+                    filepath,
+                    as_attachment=True,
+                    download_name=filename,
+                    mimetype='application/vnd.tcpdump.pcap'
+                )
+            else:
+                logging.error(f"Capture file not found at expected location: {filepath}")
+        
+        # Fallback to using the filename from the request
+        filename = request.args.get('file')
+        if not filename:
+            return jsonify({'success': False, 'error': 'Filename not specified and capture ID not found in completed captures'}), 400
+        
+        filepath = os.path.join(PCAP_DIR, filename)
+        
+        if not os.path.exists(filepath):
+            logging.error(f"Requested capture file not found: {filepath}")
+            return jsonify({'success': False, 'error': 'Capture file not found. It may have been deleted or never created.'}), 404
+        
+        # Schedule file for cleanup after download
+        cleanup_pcap_file(filepath)
+        
+        # Return the file
+        return send_file(
+            filepath,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.tcpdump.pcap'
+        )
+        
+    except Exception as e:
+        logging.error(f"Error downloading packet capture: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Ensure all captures are stopped when the application exits
+import atexit
+def cleanup_captures():
+    for capture_id, capture_info in active_captures.items():
+        try:
+            process = capture_info['process']
+            if process.poll() is None:  # Process is still running
+                process.send_signal(signal.SIGTERM)
+        except:
+            pass
+atexit.register(cleanup_captures)
 
 if __name__ == '__main__':
     host = os.getenv('FLASK_RUN_HOST', '0.0.0.0')

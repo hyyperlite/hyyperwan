@@ -90,6 +90,10 @@
                         <input type="hidden" name="interface" value="{{ interface.name }}">
                         <button type="submit">Remove</button>
                     </form>
+                    <!-- Add capture button -->
+                    <button type="button" class="capture-button" onclick="openCaptureModal('{{ interface.name }}')">
+                        Capture
+                    </button>
                 </td>
             </tr>
             {% endfor %}
@@ -102,5 +106,197 @@
             <button type="submit" class="reset-all-button">Reset All Interfaces</button>
         </form>
     </div>
+
+    <!-- Packet Capture Modal -->
+    <div id="captureModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Packet Capture</h2>
+            <form id="captureForm">
+                <input type="hidden" id="captureInterface" name="interface" value="">
+                
+                <div class="form-group">
+                    <label for="hostFilter">Host Filter (comma separated):</label>
+                    <input type="text" id="hostFilter" name="host_filter" placeholder="e.g., 192.168.1.10, 10.0.0.5">
+                </div>
+                
+                <div class="form-group">
+                    <label for="networkFilter">Network Filter (comma separated):</label>
+                    <input type="text" id="networkFilter" name="network_filter" placeholder="e.g., 192.168.1.0/24, 10.0.0.0/8">
+                </div>
+                
+                <div class="form-group">
+                    <label for="portFilter">Port Filter (comma separated):</label>
+                    <input type="text" id="portFilter" name="port_filter" placeholder="e.g., 80, 443, 22">
+                </div>
+                
+                <div class="form-group">
+                    <label>Filter Logic:</label>
+                    <label class="radio-label">
+                        <input type="radio" name="filter_logic" value="and" checked> AND
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="filter_logic" value="or"> OR
+                    </label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" id="startCaptureBtn" class="start-button">Start Capture</button>
+                    <button type="button" id="stopCaptureBtn" class="stop-button" disabled>Stop & Download</button>
+                </div>
+                
+                <div id="captureStatus" class="capture-status"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Variables to track active capture
+        let activeCaptureId = null;
+        let captureInterval = null;
+        let startTime = null;
+        
+        // Open capture modal for an interface
+        function openCaptureModal(interfaceName) {
+            const modal = document.getElementById('captureModal');
+            document.getElementById('captureInterface').value = interfaceName;
+            document.getElementById('captureStatus').textContent = '';
+            document.getElementById('captureStatus').className = 'capture-status';
+            document.getElementById('startCaptureBtn').disabled = false;
+            document.getElementById('stopCaptureBtn').disabled = true;
+            
+            // Reset form fields
+            document.getElementById('hostFilter').value = '';
+            document.getElementById('networkFilter').value = '';
+            document.getElementById('portFilter').value = '';
+            document.querySelector('input[name="filter_logic"][value="and"]').checked = true;
+            
+            modal.style.display = 'block';
+        }
+        
+        // Handle modal close button
+        document.querySelector('.close-button').onclick = function() {
+            handleModalClose();
+        }
+        
+        function handleModalClose() {
+            // If there's an active capture, ask user before closing
+            if (activeCaptureId) {
+                if (confirm('A capture is in progress. Do you want to stop it?')) {
+                    stopCapture();
+                } else {
+                    return; // Don't close modal if user cancels
+                }
+            }
+            document.getElementById('captureModal').style.display = 'none';
+        }
+        
+        // Start packet capture
+        document.getElementById('startCaptureBtn').onclick = function() {
+            const form = document.getElementById('captureForm');
+            const formData = new FormData(form);
+            
+            // Display status message
+            const statusElem = document.getElementById('captureStatus');
+            statusElem.textContent = 'Starting capture...';
+            statusElem.className = 'capture-status info';
+            
+            // Disable start button and enable stop button
+            document.getElementById('startCaptureBtn').disabled = true;
+            
+            fetch('/start_capture', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    activeCaptureId = data.capture_id;
+                    statusElem.textContent = 'Capturing packets... (limit: 10,000 packets)';
+                    statusElem.className = 'capture-status success';
+                    document.getElementById('stopCaptureBtn').disabled = false;
+                    
+                    // Set start time and update status every 3 seconds
+                    startTime = new Date();
+                    captureInterval = setInterval(() => {
+                        const elapsedSeconds = Math.floor((new Date() - startTime) / 1000);
+                        statusElem.textContent = `Capturing packets... (${elapsedSeconds}s elapsed, limit: 10,000 packets)`;
+                    }, 3000);
+                } else {
+                    statusElem.textContent = `Error: ${data.error}`;
+                    statusElem.className = 'capture-status error';
+                    document.getElementById('startCaptureBtn').disabled = false;
+                }
+            })
+            .catch(error => {
+                statusElem.textContent = `Error: ${error.message}`;
+                statusElem.className = 'capture-status error';
+                document.getElementById('startCaptureBtn').disabled = false;
+            });
+        };
+        
+        // Stop packet capture and download
+        document.getElementById('stopCaptureBtn').onclick = function() {
+            stopCapture();
+        };
+        
+        function stopCapture() {
+            if (!activeCaptureId) return;
+            
+            const statusElem = document.getElementById('captureStatus');
+            statusElem.textContent = 'Stopping capture...';
+            
+            // Clear update interval
+            if (captureInterval) {
+                clearInterval(captureInterval);
+                captureInterval = null;
+            }
+            
+            fetch(`/stop_capture/${activeCaptureId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusElem.textContent = 'Capture stopped, preparing download...';
+                    statusElem.className = 'capture-status success';
+                    
+                    // Download the file
+                    const captureId = activeCaptureId;
+                    const fileName = data.file;
+                    
+                    // Create a download link
+                    setTimeout(() => {
+                        window.location.href = `/download_capture/${captureId}?file=${fileName}`;
+                        statusElem.textContent = 'Download started! You can start a new capture.';
+                        
+                        // Reset capture state
+                        activeCaptureId = null;
+                        document.getElementById('startCaptureBtn').disabled = false;
+                        document.getElementById('stopCaptureBtn').disabled = true;
+                    }, 1000);
+                } else {
+                    statusElem.textContent = `Error: ${data.error}`;
+                    statusElem.className = 'capture-status error';
+                    document.getElementById('startCaptureBtn').disabled = false;
+                    document.getElementById('stopCaptureBtn').disabled = true;
+                }
+            })
+            .catch(error => {
+                statusElem.textContent = `Error: ${error.message}`;
+                statusElem.className = 'capture-status error';
+                document.getElementById('startCaptureBtn').disabled = false;
+                document.getElementById('stopCaptureBtn').disabled = true;
+            });
+        }
+        
+        // Close the modal if clicked outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('captureModal');
+            if (event.target == modal) {
+                handleModalClose();
+            }
+        }
+    </script>
 </body>
 </html>
