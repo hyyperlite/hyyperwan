@@ -337,17 +337,27 @@ def remove_degradations(interface):
         flash(f"Error removing network conditions from interface {interface}: {str(e)}", "error")
         logging.error(f"Error in remove_degradations for interface {interface}: {str(e)}")
 
+def is_tcpdump_available():
+    """Check if tcpdump is installed on the system"""
+    try:
+        result = subprocess.run(['which', 'tcpdump'], capture_output=True, text=True)
+        return result.returncode == 0
+    except Exception:
+        logging.error("Error checking for tcpdump availability")
+        return False
+
 @app.route('/')
 def index():
     try:
         interfaces = list_interfaces()
         hostname = socket.gethostname()
-        return render_template('index.html', interfaces=interfaces, hostname=hostname)
+        tcpdump_available = is_tcpdump_available()
+        return render_template('index.html', interfaces=interfaces, hostname=hostname, tcpdump_available=tcpdump_available)
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}")
         flash("An error occurred while loading the page", "error")
         hostname = "Unknown"
-        return render_template('index.html', interfaces=[], hostname=hostname)
+        return render_template('index.html', interfaces=[], hostname=hostname, tcpdump_available=False)
 
 @app.route('/favicon.png')
 def favicon():

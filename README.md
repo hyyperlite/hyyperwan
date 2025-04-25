@@ -1,6 +1,6 @@
 # HyyperWAN
 
-HyyperWAN is a web application for controlling network conditions (latency, jitter, and packet loss) on Linux systems using tc qdisc.
+HyyperWAN is a web application for controlling network conditions (latency, jitter, and packet loss) on Linux systems using tc qdisc. A per interface packet capture utility (using tcpdump) is also included.
 
 ## Features
 

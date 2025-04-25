@@ -46,6 +46,7 @@
                 <th>Loss</th>
                 <th>Jitter</th>
                 <th>Actions</th>
+                <th>Tools</th>
             </tr>
         </thead>
         <tbody>
@@ -80,7 +81,7 @@
                 <td>{{ interface.latency }}</td>
                 <td>{{ interface.loss }}</td>
                 <td>{{ interface.jitter }}</td>
-                <td>
+                <td class="actions-cell">
                     <form id="apply_interface" action="{{ url_for('apply_interface') }}" method="post">
                         <input type="hidden" name="interface" value="{{ interface.name }}">
                         <input type="text" name="latency" placeholder="Latency (e.g., 100ms)">
@@ -92,10 +93,17 @@
                         <input type="hidden" name="interface" value="{{ interface.name }}">
                         <button type="submit">Remove</button>
                     </form>
-                    <!-- Add capture button with interface name and alias -->
+                </td>
+                <td class="tools-cell">
+                    {% if tcpdump_available %}
                     <button type="button" class="capture-button" onclick="openCaptureModal('{{ interface.name }}', '{{ interface.alias }}')">
                         Capture
                     </button>
+                    {% else %}
+                    <span class="capture-unavailable-message">
+                        tcpdump not installed
+                    </span>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
