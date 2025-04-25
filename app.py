@@ -7,6 +7,7 @@ import time
 import threading
 import signal
 import shutil
+import socket
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
 from flask import send_from_directory
 import logging
@@ -340,11 +341,13 @@ def remove_degradations(interface):
 def index():
     try:
         interfaces = list_interfaces()
-        return render_template('index.html', interfaces=interfaces)
+        hostname = socket.gethostname()
+        return render_template('index.html', interfaces=interfaces, hostname=hostname)
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}")
         flash("An error occurred while loading the page", "error")
-        return render_template('index.html', interfaces=[])
+        hostname = "Unknown"
+        return render_template('index.html', interfaces=[], hostname=hostname)
 
 @app.route('/favicon.png')
 def favicon():

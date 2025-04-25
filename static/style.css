@@ -364,3 +364,16 @@ button:disabled {
     font-style: italic;
     color: #aaa;
 }
+
+.hostname-display {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 5px 10px;
+    background-color: rgba(46, 46, 46, 0.8);
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #aaa;
+    font-family: monospace;
+    border-left: 3px solid #8b0000;
+}
