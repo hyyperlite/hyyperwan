@@ -62,7 +62,7 @@ label {
 }
 
 input[type="text"], select {
-    width: 100px;
+    width: 125px;
     padding: 10px;
     margin-bottom: 10px;
     border: 1px solid #444;
@@ -140,9 +140,9 @@ td form button {
 }
 
 .reset-all-button {
-    width: 200px;
+    width: 125px;
     padding: 12px 20px;
-    background-color: #b30000; /* Darker red than regular buttons */
+    background-color: #b30000; 
     color: white;
     font-size: 18px;
     font-weight: bold;
