@@ -8,6 +8,7 @@ import threading
 import signal
 import shutil
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
+from flask import send_from_directory
 import logging
 
 # Make dotenv optional
@@ -344,6 +345,11 @@ def index():
         logging.error(f"Error in index route: {str(e)}")
         flash("An error occurred while loading the page", "error")
         return render_template('index.html', interfaces=[])
+
+@app.route('/favicon.png')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static', 'img'),
+                              'favicon.png', mimetype='image/png')
 
 @app.route('/apply', methods=['POST'], endpoint='apply_interface')
 def apply():
