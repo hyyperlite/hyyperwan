@@ -139,6 +139,31 @@ sudo systemctl daemon-reload
 sudo systemctl restart hyyperwan.service
 ```
 
+### HTTP Service Alternative
+
+For users who prefer running the application over HTTP rather than HTTPS, an alternative service file (`hyyperwan.service.http`) is provided:
+
+1. Copy the HTTP service file to systemd:
+   ```bash
+   sudo cp /path/to/hyyperwan/hyyperwan.service.http /etc/systemd/system/hyyperwan.service
+   ```
+   
+   Note: Replace `/path/to/hyyperwan/` with the actual path where you installed the application. If you followed the recommended installation, this would be `/opt/hyyperwan/`
+
+2. Alternatively, to maintain both services side by side:
+   ```bash
+   sudo cp /path/to/hyyperwan/hyyperwan.service.http /etc/systemd/system/hyyperwan-http.service
+   ```
+
+3. Reload systemd and enable/start the service:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable hyyperwan.service
+   sudo systemctl start hyyperwan.service
+   ```
+
+The HTTP service runs on port 8080 by default. If you need to modify paths or other settings in the service file, edit it before copying to the systemd directory.
+
 ## Usage
 
 1. Access the web interface at http://server-ip:8080 (or https://server-ip:8443 if HTTPS is enabled)
