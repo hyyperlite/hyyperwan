@@ -341,23 +341,55 @@ def is_tcpdump_available():
     """Check if tcpdump is installed on the system"""
     try:
         result = subprocess.run(['which', 'tcpdump'], capture_output=True, text=True)
+        logging.info(f"tcpdump availability check: {'Available' if result.returncode == 0 else 'Not available'}")
         return result.returncode == 0
-    except Exception:
-        logging.error("Error checking for tcpdump availability")
+    except Exception as e:
+        logging.error(f"Error checking for tcpdump availability: {str(e)}")
+        return False
+
+def is_tc_available():
+    """Check if tc utility is installed on the system"""
+    try:
+        result = subprocess.run(['which', 'tc'], capture_output=True, text=True)
+        logging.info(f"tc utility availability check: {'Available' if result.returncode == 0 else 'Not available'}")
+        return result.returncode == 0
+    except Exception as e:
+        logging.error(f"Error checking for tc availability: {str(e)}")
+        return False
+
+def is_ip_available():
+    """Check if ip command is installed on the system (from iproute2 package)"""
+    try:
+        result = subprocess.run(['which', 'ip'], capture_output=True, text=True)
+        logging.info(f"ip command availability check: {'Available' if result.returncode == 0 else 'Not available'}")
+        return result.returncode == 0
+    except Exception as e:
+        logging.error(f"Error checking for ip command availability: {str(e)}")
         return False
 
 @app.route('/')
 def index():
     try:
-        interfaces = list_interfaces()
+        # Check if ip command is available first
+        ip_available = is_ip_available()
+        
+        # Only attempt to list interfaces if ip command is available
+        interfaces = list_interfaces() if ip_available else []
+        
         hostname = socket.gethostname()
         tcpdump_available = is_tcpdump_available()
-        return render_template('index.html', interfaces=interfaces, hostname=hostname, tcpdump_available=tcpdump_available)
+        tc_available = is_tc_available()
+        
+        return render_template('index.html', interfaces=interfaces, hostname=hostname, 
+                              tcpdump_available=tcpdump_available, tc_available=tc_available,
+                              ip_available=ip_available)
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}")
         flash("An error occurred while loading the page", "error")
         hostname = "Unknown"
-        return render_template('index.html', interfaces=[], hostname=hostname, tcpdump_available=False)
+        return render_template('index.html', interfaces=[], hostname=hostname, 
+                              tcpdump_available=False, tc_available=False,
+                              ip_available=False)
 
 @app.route('/favicon.png')
 def favicon():

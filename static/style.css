@@ -420,3 +420,62 @@ td.actions-cell, td.tools-cell {
     color: #888;
     font-style: italic;
 }
+
+.utility-unavailable-message {
+    display: block;
+    font-size: 0.8em;
+    color: #888;
+    font-style: italic;
+    margin-top: 22px;
+}
+
+/* Critical warning for missing dependencies */
+.critical-warning {
+    background-color: #8b0000;
+    color: #fff;
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    border-left: 6px solid #ff0000;
+}
+
+.critical-warning strong {
+    font-size: 1.2em;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.critical-warning p {
+    margin: 10px 0;
+}
+
+.installation-note {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    margin-top: 10px;
+}
+
+.installation-note code {
+    background-color: #000;
+    padding: 3px 5px;
+    border-radius: 3px;
+}
+
+.no-interfaces-message {
+    background-color: #2e2e2e;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    margin: 30px auto;
+    max-width: 600px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.no-interfaces-message p {
+    margin: 10px 0;
+    font-size: 1.1em;
+}

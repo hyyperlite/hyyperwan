@@ -36,7 +36,17 @@
             </div>
         {% endif %}
     {% endwith %}
+
+    <!-- IP Command Availability Check -->
+    {% if not ip_available %}
+    <div class="critical-warning">
+        <strong>Missing Dependency:</strong> The 'ip' command is not installed on this system.
+        <p>This command is required to list and manage network interfaces.</p>
+        <p class="installation-note">You can install it by running: <code>sudo apt install iproute2</code> (Debian/Ubuntu) or <code>sudo yum install iproute</code> (RHEL/CentOS)</p>
+    </div>
+    {% endif %}
     
+    {% if ip_available %}
     <table>
         <thead>
             <tr>
@@ -82,6 +92,7 @@
                 <td>{{ interface.loss }}</td>
                 <td>{{ interface.jitter }}</td>
                 <td class="actions-cell">
+                    {% if tc_available %}
                     <form id="apply_interface" action="{{ url_for('apply_interface') }}" method="post">
                         <input type="hidden" name="interface" value="{{ interface.name }}">
                         <input type="text" name="latency" placeholder="Latency (e.g., 100ms)">
@@ -93,6 +104,11 @@
                         <input type="hidden" name="interface" value="{{ interface.name }}">
                         <button type="submit">Remove</button>
                     </form>
+                    {% else %}
+                    <span class="utility-unavailable-message">
+                        tc qdisc not installed: please install tc qdisc utility on host
+                    </span>
+                    {% endif %}
                 </td>
                 <td class="tools-cell">
                     {% if tcpdump_available %}
@@ -116,6 +132,12 @@
             <button type="submit" class="reset-all-button">Reset All Interfaces</button>
         </form>
     </div>
+    {% else %}
+    <div class="no-interfaces-message">
+        <p>Unable to list network interfaces because the required 'ip' command is not available.</p>
+        <p>Please install the iproute2 package and restart the application.</p>
+    </div>
+    {% endif %}
 
     <!-- Packet Capture Modal -->
     <div id="captureModal" class="modal">
