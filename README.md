@@ -8,6 +8,7 @@ HyyperWAN is a web application for controlling network conditions (latency, jitt
 - Add network jitter
 - Simulate packet loss
 - Customize interface aliases for better identification
+- Capture network packets with tcpdump for traffic analysis
 - Support for both HTTP and HTTPS
 - View current network condition settings per interface
 
@@ -15,8 +16,9 @@ HyyperWAN is a web application for controlling network conditions (latency, jitt
 
 - Linux operating system
 - Python 3.8 or higher
-- Root privileges (for tc commands)
+- Root privileges (for tc commands and packet capture)
 - iproute2 package (for the `ip` command)
+- tcpdump (for packet capture functionality)
 
 ## Installation
 
@@ -33,7 +35,13 @@ HyyperWAN is a web application for controlling network conditions (latency, jitt
    pip install -r requirements.txt
    ```
 
-3. Run the application:
+3. Make sure tcpdump is installed:
+   ```bash
+   sudo apt-get install tcpdump   # For Debian/Ubuntu
+   sudo yum install tcpdump       # For RHEL/CentOS
+   ```
+
+4. Run the application:
    ```bash
    sudo python app.py
    ```
@@ -140,6 +148,7 @@ sudo systemctl restart hyyperwan.service
    - Set jitter (e.g., 20ms)
    - Set packet loss (e.g., 5%)
    - Create custom aliases for easier identification
+   - Capture packets for network analysis
 
 3. Click "Apply" to set the selected network conditions
 
@@ -156,6 +165,30 @@ You can add user-friendly names to interfaces for easier identification:
 3. Click "Save"
 
 Aliases are stored persistently and will be remembered across application restarts.
+
+## Packet Capture
+
+HyyperWAN includes a packet capture feature to help analyze network traffic:
+
+1. Click "Capture" next to the interface you want to monitor
+2. In the popup window, configure your capture filters:
+   - **Host Filter**: Capture packets from/to specific IP addresses (comma separated)
+   - **Network Filter**: Capture packets for specific networks (e.g., 192.168.1.0/24)
+   - **Port Filter**: Capture packets for specific ports (comma separated)
+   - For each filter type, select whether to use AND or OR logic for multiple values
+
+3. Click "Start Capture" to begin capturing packets
+   - Captures are limited to 10,000 packets maximum to prevent disk space issues
+   - A counter will show the elapsed capture time
+
+4. Click "Stop & Download" to end the capture and download the .pcap file
+   - The file can be analyzed with tools like Wireshark or tcpdump
+
+Notes:
+- You must run HyyperWAN with root/sudo privileges for packet capture to work
+- Packet capture files are temporarily stored in `/tmp/hyyperwan_pcaps/`
+- Files are automatically deleted after download to preserve disk space
+- Closing the browser window will automatically stop any active captures
 
 ## Troubleshooting
 
