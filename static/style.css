@@ -62,7 +62,7 @@ label {
 }
 
 input[type="text"], select {
-    width: 200px;
+    width: 100px;
     padding: 10px;
     margin-bottom: 10px;
     border: 1px solid #444;
@@ -394,7 +394,7 @@ button:disabled {
 
 /* Action and Tools column styling */
 td.actions-cell, td.tools-cell {
-    vertical-align: top;
+    vertical-align: normal;
     padding: 10px;
 }
 
@@ -411,6 +411,11 @@ td.actions-cell, td.tools-cell {
     background-color: #0055a5;
     margin-top: 22px; /* Match the height of the form inputs */
     display: block; /* Make it block level for consistent positioning */
+}
+
+/* Add this new selector to fix the hover effect */
+.tools-cell .capture-button:hover {
+    background-color: #003d7a;
 }
 
 .tools-cell .capture-unavailable-message {
