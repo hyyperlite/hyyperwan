@@ -37,7 +37,7 @@ if not os.path.exists(PCAP_DIR):
 active_captures = {}
 completed_captures = {}
 
-def cleanup_pcap_file(filepath, delay=10):
+def cleanup_pcap_file(filepath, delay=30):
     """Delete a pcap file after a delay to ensure download completes"""
     def delete_file():
         try:
