@@ -225,9 +225,9 @@ def get_loss(interface):
 
 def get_qdisc_settings(interface):
     try:
-        result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
+        result = subprocess.run(['sudo', 'tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
         output = result.stdout
-        log_command(['tc', 'qdisc', 'show', 'dev', interface], output)
+        log_command(['sudo', 'tc', 'qdisc', 'show', 'dev', interface], output)
         
         # Improved regex patterns for latency, jitter and loss
         latency_match = re.search(r'delay (\d+(?:ms|us))', output)
@@ -315,8 +315,8 @@ def remove_degradations(interface):
         display_name = f"{interface} ({alias})" if alias and alias != interface else interface
         
         # First check if there's a netem qdisc to remove
-        check_result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
-        log_command(['tc', 'qdisc', 'show', 'dev', interface], check_result.stdout)
+        check_result = subprocess.run(['sudo', 'tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
+        log_command(['sudo', 'tc', 'qdisc', 'show', 'dev', interface], check_result.stdout)
         
         # Only attempt to remove if "netem" is in the output
         if "netem" in check_result.stdout:
@@ -482,7 +482,7 @@ def reset_all():
                 interface_name = interface_info['name']
                 
                 # Check if there's a netem qdisc to remove on this interface
-                check_result = subprocess.run(['tc', 'qdisc', 'show', 'dev', interface_name], 
+                check_result = subprocess.run(['sudo', 'tc', 'qdisc', 'show', 'dev', interface_name], 
                                              capture_output=True, text=True)
                 
                 # Only count interfaces where netem was actually present
@@ -634,7 +634,7 @@ def start_capture():
             filter_expr = " and ".join(filter_parts)
         
         # Build tcpdump command with packet count limit
-        cmd = ['sudo', 'tcpdump', '-i', interface, '-w', pcap_file, '-c', '10000']  # Limit to 10000 packets
+        cmd = ['sudo', 'tcpdump', '-i', interface, '-w', pcap_file, '-c', '10000', '-Z', os.getlogin()]  # Limit to 10000 packets and drop privileges
         
         # Add filter if present
         if filter_expr:
