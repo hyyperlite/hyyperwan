@@ -634,8 +634,20 @@ def start_capture():
             filter_expr = " and ".join(filter_parts)
         
         # Build tcpdump command with packet count limit
-        # Temporarily remove '-Z', os.getlogin() for Docker testing
-        cmd = ['sudo', 'tcpdump', '-i', interface, '-w', pcap_file, '-c', '10000']  # Limit to 10000 packets
+        cmd = ['sudo', 'tcpdump', '-i', interface, '-w', pcap_file, '-c', '10000']  # Base command
+
+        # Add -Z option only if not running inside a Docker container
+        if not os.path.exists('/.dockerenv'):
+            try:
+                # Get the login name of the user running the script
+                login_user = os.getlogin()
+                cmd.extend(['-Z', login_user])
+                logging.info(f"Running locally, adding '-Z {login_user}' to tcpdump command.")
+            except OSError as e:
+                # os.getlogin() can fail if not connected to a tty
+                logging.warning(f"Could not get login user (os.getlogin failed: {e}). Omitting -Z option.")
+        else:
+            logging.info("Running inside a container, omitting '-Z' option from tcpdump command.")
 
         # Add filter if present
         if filter_expr:
