@@ -1,0 +1,46 @@
+# Stage 1: Clone the repository
+FROM alpine/git as clone
+WORKDIR /app
+RUN git clone https://github.com/hyyperlite/hyyperwan.git .
+
+# Stage 2: Build the final image
+FROM python:3.10-slim
+
+# Install system dependencies required for tc (iproute2) and tcpdump
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    iproute2 \
+    tcpdump \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy requirements and application code from the clone stage
+COPY --from=clone /app/requirements.txt .
+COPY --from=clone /app/app.py .
+COPY --from=clone /app/templates ./templates
+COPY --from=clone /app/static ./static
+# Optional: Copy certificates if they are in the source repo and needed inside the container
+# COPY --from=clone /app/certificates ./certificates
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Make port defined by FLASK_RUN_PORT (default 8080) available
+# Note: EXPOSE doesn't actually publish the port, it's documentation.
+# The port needs to be published using -p when running 'docker run'.
+# Defaulting to 8080 as per app.py logic if FLASK_RUN_PORT is not set.
+EXPOSE 8080
+
+# Define environment variable for the application directory (optional, but can be useful)
+ENV APP_HOME /app
+
+# Run app.py when the container launches
+# Use gunicorn or waitress for production instead of Flask's built-in server
+# Example using Flask's server (for development/simplicity):
+CMD ["python", "app.py"]
+
+# Example using gunicorn (recommended for production):
+# Assuming gunicorn is in requirements.txt in the source repo
+# CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]

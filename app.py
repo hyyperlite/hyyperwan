@@ -634,8 +634,9 @@ def start_capture():
             filter_expr = " and ".join(filter_parts)
         
         # Build tcpdump command with packet count limit
-        cmd = ['sudo', 'tcpdump', '-i', interface, '-w', pcap_file, '-c', '10000', '-Z', os.getlogin()]  # Limit to 10000 packets and drop privileges
-        
+        # Temporarily remove '-Z', os.getlogin() for Docker testing
+        cmd = ['sudo', 'tcpdump', '-i', interface, '-w', pcap_file, '-c', '10000']  # Limit to 10000 packets
+
         # Add filter if present
         if filter_expr:
             cmd.extend([filter_expr])
@@ -785,17 +786,28 @@ def download_capture(capture_id):
         logging.error(f"Error downloading packet capture: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Ensure all captures are stopped when the application exits
+# Ensure all captures are stopped and clean up the pcap directory when the application exits
 import atexit
-def cleanup_captures():
+def cleanup_on_exit():
+    # First stop any active captures
     for capture_id, capture_info in active_captures.items():
         try:
             process = capture_info['process']
             if process.poll() is None:  # Process is still running
+                logging.info(f"Stopping active capture on exit: {capture_info['display_name']}")
                 process.send_signal(signal.SIGTERM)
-        except:
-            pass
-atexit.register(cleanup_captures)
+        except Exception as e:
+            logging.error(f"Error stopping capture on exit: {str(e)}")
+    
+    # Clean up the pcap directory
+    try:
+        if os.path.exists(PCAP_DIR):
+            logging.info(f"Removing pcap directory on exit: {PCAP_DIR}")
+            shutil.rmtree(PCAP_DIR)
+    except Exception as e:
+        logging.error(f"Error removing pcap directory on exit: {str(e)}")
+
+atexit.register(cleanup_on_exit)
 
 if __name__ == '__main__':
     host = os.getenv('FLASK_RUN_HOST', '0.0.0.0')

@@ -1,3 +1,6 @@
+# This file assume app is installed at/run from /opt/hyyperwan
+# if it is not, then ExecStart path should be adjusted accordingly
+
 [Unit]
 Description=HyyperWAN Network Condition Control Application (HTTP)
 After=network.target

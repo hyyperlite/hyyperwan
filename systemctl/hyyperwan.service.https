@@ -1,3 +1,11 @@
+# Use this file if you want to run Hyyperwan as a service listening on HTTPS
+
+# This file assume app is installed at/run from /opt/hyyperwan
+# if it is not, then ExecStart path should be adjusted accordingly
+
+# This file assumes use of default self-signed certificates provided
+# with the app in the <appdir>/certificates/ directory.
+
 [Unit]
 Description=HyyperWAN Network Condition Control Application
 After=network.target
