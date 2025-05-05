@@ -1,0 +1,48 @@
+# Stage 1: Clone the repository
+FROM alpine/git AS clone
+WORKDIR /app
+# Note: Cloning directly in Dockerfile might fetch the latest commit, not necessarily the local state.
+# Consider copying local files instead if building from a local context is preferred.
+RUN git clone https://github.com/hyyperlite/hyyperwan.git .
+
+# Stage 2: Build the final image for HTTPS
+FROM python:3.10-slim
+
+# Install system dependencies required for tc (iproute2) and tcpdump
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    iproute2 \
+    tcpdump \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy requirements and application code from the clone stage
+COPY --from=clone /app/requirements.txt .
+COPY --from=clone /app/app.py .
+COPY --from=clone /app/templates ./templates
+COPY --from=clone /app/static ./static
+COPY --from=clone /app/ignored_interfaces.json .
+# Copy certificates needed for HTTPS
+COPY --from=clone /app/certificates ./certificates
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Set environment variables for HTTPS
+ENV USE_HTTPS=true
+ENV SSL_CERT_PATH=/app/certificates/cert.pem
+ENV SSL_KEY_PATH=/app/certificates/key.pem
+# Set the port Flask should listen on (default HTTPS port)
+ENV FLASK_RUN_PORT=8443
+
+# Make the HTTPS port available (documentation purpose)
+EXPOSE 8443
+
+# Define environment variable for the application directory (optional, but can be useful)
+ENV APP_HOME=/app
+
+# Run app.py when the container launches
+# The app will read the environment variables to start in HTTPS mode
+CMD ["python", "app.py"]
