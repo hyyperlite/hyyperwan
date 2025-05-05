@@ -85,6 +85,41 @@ HyyperWAN is a web application for controlling network conditions (latency, jitt
 
    The application will be accessible at http://server-ip:8443 (if HTTPS is enabled) or http://server-ip:8080
 
+### Option 3: Docker Container
+
+You can also run HyyperWAN inside a Docker container. This requires building the image and running the container with specific privileges to allow interaction with the host's network interfaces.
+
+1.  **Build the Docker Image:**
+    Navigate to the root directory of the repository and run the build command. Using `--no-cache` ensures you incorporate the latest code changes.
+
+    ```bash
+    docker build --no-cache -t hyyperwan -f Docker/Dockerfile .
+    ```
+
+2.  **Run the Docker Container:**
+    Start the container in detached mode. `--net=host` allows the container to share the host's network stack, and `--privileged` grants the necessary permissions for `tc` and `tcpdump` operations on the host interfaces.
+
+    ```bash
+    docker run -d --name hyyperwan --net=host --privileged hyyperwan
+    ```
+
+3.  **Access the Application:**
+    The application will be accessible via the host machine's IP address on port 8080 (or the port configured via environment variables, e.g., `FLASK_RUN_PORT`).
+
+    Example: `http://<host-ip>:8080`
+
+4.  **Stopping the Container:**
+    ```bash
+    docker stop hyyperwan
+    ```
+
+5.  **Viewing Logs:**
+    ```bash
+    docker logs hyyperwan
+    ```
+
+**Note:** Running with `--net=host` and `--privileged` grants the container extensive access to the host system. Ensure you understand the security implications before using this method.
+
 ## Configuration
 
 ### Environment Variables
