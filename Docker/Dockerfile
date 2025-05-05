@@ -1,5 +1,5 @@
 # Stage 1: Clone the repository
-FROM alpine/git as clone
+FROM alpine/git AS clone
 WORKDIR /app
 RUN git clone https://github.com/hyyperlite/hyyperwan.git .
 
@@ -21,6 +21,7 @@ COPY --from=clone /app/requirements.txt .
 COPY --from=clone /app/app.py .
 COPY --from=clone /app/templates ./templates
 COPY --from=clone /app/static ./static
+COPY --from=clone /app/ignored_interfaces.json .
 # Optional: Copy certificates if they are in the source repo and needed inside the container
 # COPY --from=clone /app/certificates ./certificates
 
@@ -34,7 +35,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 8080
 
 # Define environment variable for the application directory (optional, but can be useful)
-ENV APP_HOME /app
+ENV APP_HOME=/app
 
 # Run app.py when the container launches
 # Use gunicorn or waitress for production instead of Flask's built-in server

@@ -11,3 +11,4 @@ docs/_build/
 *.log
 app.log
 interface_aliases.json
+*.swp
