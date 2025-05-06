@@ -1,29 +1,33 @@
-# Use this file if you want to run Hyyperwan as a service listening on HTTPS
 
 # This file assume app is installed at/run from /opt/hyyperwan
 # if it is not, then ExecStart path should be adjusted accordingly
 
-# This file assumes use of default self-signed certificates provided
-# with the app in the <appdir>/certificates/ directory.
-
 [Unit]
-Description=HyyperWAN Network Condition Control Application
+Description=HyyperWAN Network Condition Control Application (HTTP)
 After=network.target
 
 [Service]
-# Run as root because tc qdisc commands require root privileges
-User=root
-Group=root
+# Comment regarding root for tc qdisc and tcpdump is noted, but app itself runs as hyyperwan.
+# If app.py needs to execute tc, it will need sudo privileges for hyyperwan or app must run as root.
+User=hyyperwan
+Group=hyyperwan
 WorkingDirectory=/opt/hyyperwan
-ExecStart=/usr/bin/python3 /opt/hyyperwan/app.py
+
+# MODIFIED: Point ExecStart to the Python interpreter in your virtual environment
+ExecStart=/opt/hyyperwan/.venv/bin/python3 /opt/hyyperwan/app.py
+
+# Environment variables for your Flask app (ensure your app.py uses FLASK_RUN_HOST/PORT if needed)
 Environment="FLASK_APP=app.py"
 Environment="FLASK_RUN_HOST=0.0.0.0"
 Environment="FLASK_RUN_PORT=8443"
+Environment="PATH=/opt/hyyperwan/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# HTTP configuration
 # HTTPS configuration (set USE_HTTPS=false to use HTTP instead)
 Environment="USE_HTTPS=true"
 Environment="SSL_CERT_PATH=/opt/hyyperwan/certificates/cert.pem"
 Environment="SSL_KEY_PATH=/opt/hyyperwan/certificates/key.pem"
-Restart=always
+Restart=on-failure
 RestartSec=10
 
 [Install]

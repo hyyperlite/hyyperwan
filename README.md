@@ -173,46 +173,77 @@ docker build --no-cache -t hyyperwan-https -f Docker/Dockerfile.https .
 
 ### Option 4: Systemd Service (Recommended for Production on a non-containerized host)
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/hyyperwan.git
-   ```
+This option describes setting up HyyperWAN to run as a systemd service using a dedicated non-root user (`hyyperwan`).
 
-2. Copy the application files to the recommended location:
-   ```bash
-   sudo mkdir -p /opt/hyyperwan
-   sudo cp -r hyyperwan/* /opt/hyyperwan/
-   ```
+1.  **Create a dedicated user and group:**
+    ```bash
+    sudo groupadd hyyperwan
+    sudo useradd -r -g hyyperwan -d /opt/hyyperwan -s /sbin/nologin hyyperwan
+    ```
 
-3. Install the required dependencies:
-   ```bash
-   sudo pip install -r /opt/hyyperwan/requirements.txt
-   ```
+2.  **Clone the repository and set up application directory:**
+    ```bash
+    git clone https://github.com/hyyperlite/hyyperwan.git # Or your fork's URL
+    sudo mv hyyperwan /opt/
+    ```
 
-4. Copy the systemd service file (choose HTTP or HTTPS):
-   For HTTPS (recommended, uses `/opt/hyyperwan/certificates`):
-   ```bash
-   sudo cp systemctl/hyyperwan.service.https /etc/systemd/system/hyyperwan.service
-   ```
-   For HTTP:
-   ```bash
-   sudo cp systemctl/hyyperwan.service.http /etc/systemd/system/hyyperwan.service
-   ```
-   *(Ensure the paths to certificates in `hyyperwan.service.https` are correct if you customize them)*
+3.  **Create Python virtual environment and install dependencies:**
+    Ensure you have `python3-venv` (or equivalent) installed.
+    ```bash
+    sudo apt-get update
+    sudo apt-get install python3-venv # For Debian/Ubuntu
+    # For RHEL/CentOS, you might use 'sudo yum install python3-virtualenv' or similar
 
-5. Reload systemd, enable and start the service:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable hyyperwan.service
-   sudo systemctl start hyyperwan.service
-   ```
+    sudo mkdir -p /opt/hyyperwan
+    sudo chown -R hyyperwan:hyyperwan /opt/hyyperwan
+    
+    sudo -u hyyperwan python3 -m venv /opt/hyyperwan/venv
+    sudo -u hyyperwan /opt/hyyperwan/venv/bin/pip3 install --no-cache-dir -r /opt/hyyperwan/requirements.txt
+    ```
+    *Note: If `pip3` is not found, try `pip` within the activated venv or ensure your system's Python 3 pip is correctly aliased.*
 
-6. Check the status:
-   ```bash
-   sudo systemctl status hyyperwan.service
-   ```
+4.  **Configure Sudoers for passwordless tc and tcpdump:**
+    Create a new file `/etc/sudoers.d/hyyperwan` with the following content. **Use `visudo -f /etc/sudoers.d/hyyperwan` to create and edit this file to ensure correct syntax.**
+    ```sudoers
+    hyyperwan ALL=(ALL) NOPASSWD: /usr/sbin/tc
+    hyyperwan ALL=(ALL) NOPASSWD: /usr/sbin/tcpdump
+    ```
+    *Verify the paths to `tc` and `tcpdump` on your system using `which tc` and `which tcpdump` and adjust if necessary.*
 
-   The application will be accessible at `http://server-ip:8080` (for HTTP service) or `https://server-ip:8443` (for HTTPS service).
+5.  **Copy the systemd service file (choose HTTP or HTTPS):**
+    The provided service files in the `systemctl/` directory are configured to run as `User=hyyperwan` and `Group=hyyperwan`.
+
+    For HTTPS (recommended, uses `/opt/hyyperwan/certificates`):
+    ```bash
+    sudo cp /opt/hyyperwan/systemctl/hyyperwan.service.https /etc/systemd/system/hyyperwan.service
+    ```
+    For HTTP:
+    ```bash
+    sudo cp /opt/hyyperwan/systemctl/hyyperwan.service.http /etc/systemd/system/hyyperwan.service
+    ```
+    *(Ensure the paths to certificates in `hyyperwan.service.https` are correct if you customize them, and that `hyyperwan` user can read them).*
+
+6.  **Set ownership for all application files:**
+    ```bash
+    sudo chown -R hyyperwan:hyyperwan /opt/hyyperwan
+    # Ensure the hyyperwan user has read access to certificates if using HTTPS
+    # sudo chown -R hyyperwan:hyyperwan /opt/hyyperwan/certificates
+    # sudo chmod -R 750 /opt/hyyperwan/certificates # Or more restrictive if key.pem is sensitive
+    ```
+
+7.  **Reload systemd, enable and start the service:**
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable hyyperwan.service
+    sudo systemctl start hyyperwan.service
+    ```
+
+8.  **Check the status:**
+    ```bash
+    sudo systemctl status hyyperwan.service
+    journalctl -u hyyperwan.service -n 50 --no-pager
+    ```
+    The application will be accessible at `http://server-ip:8080` (for HTTP service) or `https://server-ip:8443` (for HTTPS service).
 
 ## Configuration
 
