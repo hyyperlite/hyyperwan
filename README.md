@@ -22,7 +22,130 @@ HyyperWAN is a web application for controlling network conditions (latency, jitt
 
 ## Installation
 
-### Option 1: Direct Installation
+### Option 1: Pull Docker Image from GitHub Container Registry (ghcr.io)
+
+This is the recommended method for most users. Pre-built Docker images are available on GitHub Container Registry.
+
+1.  **Pull the Docker Image:**
+
+    For the HTTP version (listens on port 8080 by default):
+    ```bash
+    docker pull ghcr.io/hyyperlite/hyyperwan-http:latest
+    ```
+
+    For the HTTPS version (listens on port 8443 by default, uses included self-signed certificates):
+    ```bash
+    docker pull ghcr.io/hyyperlite/hyyperwan-https:latest
+    ```
+
+2.  **Run the Docker Container:**
+    Start the container in detached mode. `--net=host` allows the container to share the host's network stack, `--privileged` grants the necessary permissions for `tc` and `tcpdump` operations on the host interfaces, and `--restart unless-stopped` ensures the container restarts automatically with Docker or on host reboot.
+
+    For HTTP:
+    ```bash
+    docker run -d --name hyyperwan-http --net=host --privileged --restart unless-stopped ghcr.io/hyyperlite/hyyperwan-http:latest
+    ```
+
+    For HTTPS:
+    ```bash
+    docker run -d --name hyyperwan-https --net=host --privileged --restart unless-stopped ghcr.io/hyyperlite/hyyperwan-https:latest
+    ```
+
+3.  **Access the Application:**
+    The application will be accessible via the host machine's IP address.
+    - For HTTP: `http://<host-ip>:8080` (or the port configured via `FLASK_RUN_PORT`)
+    - For HTTPS: `https://<host-ip>:8443` (or the port configured via `FLASK_RUN_PORT`)
+
+4.  **Stopping the Container:**
+    ```bash
+    docker stop hyyperwan-http  # For the HTTP container
+    # or
+    docker stop hyyperwan-https # For the HTTPS container
+    ```
+
+5.  **Viewing Logs:**
+    ```bash
+    docker logs hyyperwan-http  # For the HTTP container
+    # or
+    docker logs hyyperwan-https # For the HTTPS container
+    ```
+
+### Option 2: Build Docker Image from Dockerfile
+
+If you prefer to build the image yourself or need to make custom modifications. Example `Dockerfile.http` (for HTTP) and `Dockerfile.https` (for HTTPS) are provided in the `Docker/` directory of the repository.
+
+**To get started, you'll need the Dockerfiles. Here are a couple of ways to obtain them:**
+
+*   **A) Clone the full repository (Recommended if you also plan to modify application code):**
+    This gives you all project files, including the Dockerfiles located in the `Docker/` subdirectory.
+    ```bash
+    git clone https://github.com/hyyperlite/hyyperwan.git
+    cd hyyperwan
+    # After cloning, the Dockerfiles will be in ./Docker/
+    # Proceed to step "1. Build the Docker Image" below.
+    ```
+
+*   **B) Download only the Dockerfiles using `wget`:**
+    This method is useful if you only need the Dockerfiles themselves. The provided Dockerfiles are multi-stage and will clone the application code during their own build process.
+    ```bash
+    # Create a directory to store the Dockerfiles and build the image
+    mkdir hyyperwan_docker_build
+    cd hyyperwan_docker_build
+
+    # Create the Docker subdirectory
+    mkdir Docker
+    cd Docker
+
+    # Download the Dockerfiles
+    wget https://raw.githubusercontent.com/hyyperlite/hyyperwan/main/docker/Dockerfile.http
+    wget https://raw.githubusercontent.com/hyyperlite/hyyperwan/main/docker/Dockerfile.https
+    
+    # Go back to the parent directory for the build context
+    cd ..
+    # After these commands, the Dockerfiles will be available in the Docker/ subdirectory.
+    # (e.g., hyyperwan_docker_build/Docker/Dockerfile.http).
+    # Now, proceed to step "1. Build the Docker Image" below, ensuring your terminal is in the 'hyyperwan_docker_build' directory.
+    ```
+
+**1. Build the Docker Image:**
+
+Navigate to the directory where you have the `Docker` subdirectory (e.g., the root of the full repository if you chose option A, or the `hyyperwan_docker_build` directory if you chose option B). The build context (the `.` at the end of the `docker build` command) should be this directory.
+
+To build the HTTP version (defaulting to port 8080):
+```bash
+docker build --no-cache -t hyyperwan-http -f Docker/Dockerfile.http .
+```
+
+To build the HTTPS version (defaulting to port 8443):
+```bash
+docker build --no-cache -t hyyperwan-https -f Docker/Dockerfile.https .
+```
+
+2.  **Run the Docker Container:**
+    Start the container in detached mode. `--net=host` allows the container to share the host's network stack, `--privileged` grants the necessary permissions for `tc` and `tcpdump` operations on the host interfaces, and `--restart unless-stopped` ensures the container restarts automatically.
+
+    For HTTP:
+    ```bash
+    docker run -d --name hyyperwan-http --net=host --privileged --restart unless-stopped hyyperwan-http
+    ```
+
+    For HTTPS:
+    ```bash
+    docker run -d --name hyyperwan-https --net=host --privileged --restart unless-stopped hyyperwan-https
+    ```
+
+3.  **Access the Application:**
+    (Same as Option 1)
+
+4.  **Stopping the Container:**
+    (Same as Option 1)
+
+5.  **Viewing Logs:**
+    (Same as Option 1)
+
+**Note for Docker Options:** Running with `--net=host` and `--privileged` grants the container extensive access to the host system. Ensure you understand the security implications before using this method.
+
+### Option 3: Direct Installation
 
 1. Clone the repository:
    ```bash
@@ -48,7 +171,7 @@ HyyperWAN is a web application for controlling network conditions (latency, jitt
 
    The application will be accessible at http://server-ip:8080
 
-### Option 2: Systemd Service (Recommended for Production)
+### Option 4: Systemd Service (Recommended for Production on a non-containerized host)
 
 1. Clone the repository:
    ```bash
@@ -66,10 +189,16 @@ HyyperWAN is a web application for controlling network conditions (latency, jitt
    sudo pip install -r /opt/hyyperwan/requirements.txt
    ```
 
-4. Copy the systemd service file:
+4. Copy the systemd service file (choose HTTP or HTTPS):
+   For HTTPS (recommended, uses `/opt/hyyperwan/certificates`):
    ```bash
-   sudo cp /opt/hyyperwan/hyyperwan.service /etc/systemd/system/
+   sudo cp systemctl/hyyperwan.service.https /etc/systemd/system/hyyperwan.service
    ```
+   For HTTP:
+   ```bash
+   sudo cp systemctl/hyyperwan.service.http /etc/systemd/system/hyyperwan.service
+   ```
+   *(Ensure the paths to certificates in `hyyperwan.service.https` are correct if you customize them)*
 
 5. Reload systemd, enable and start the service:
    ```bash
@@ -83,60 +212,7 @@ HyyperWAN is a web application for controlling network conditions (latency, jitt
    sudo systemctl status hyyperwan.service
    ```
 
-   The application will be accessible at http://server-ip:8443 (if HTTPS is enabled) or http://server-ip:8080
-
-### Option 3: Docker Container
-
-You can also run HyyperWAN inside a Docker container. This requires building the image and running the container with specific privileges to allow interaction with the host's network interfaces.
-
-Example `Dockerfile.http` (for HTTP) and `Dockerfile.https` (for HTTPS) are provided in the `Docker/` directory.
-
-1.  **Build the Docker Image:**
-    Navigate to the root directory of the repository. To build the HTTP version (defaulting to port 8080):
-
-    ```bash
-    docker build --no-cache -t hyyperwan-http -f Docker/Dockerfile.http .
-    ```
-
-    To build the HTTPS version (defaulting to port 8443):
-
-    ```bash
-    docker build --no-cache -t hyyperwan-https -f Docker/Dockerfile.https .
-    ```
-
-2.  **Run the Docker Container:**
-    Start the container in detached mode. `--net=host` allows the container to share the host's network stack, and `--privileged` grants the necessary permissions for `tc` and `tcpdump` operations on the host interfaces.
-
-    For HTTP:
-    ```bash
-    docker run -d --name hyyperwan-http --net=host --privileged hyyperwan-http
-    ```
-
-    For HTTPS:
-    ```bash
-    docker run -d --name hyyperwan-https --net=host --privileged hyyperwan-https
-    ```
-
-3.  **Access the Application:**
-    The application will be accessible via the host machine's IP address.
-    - For HTTP: `http://<host-ip>:8080` (or the port configured via `FLASK_RUN_PORT`)
-    - For HTTPS: `https://<host-ip>:8443` (or the port configured via `FLASK_RUN_PORT`)
-
-4.  **Stopping the Container:**
-    ```bash
-    docker stop hyyperwan-http  # For the HTTP container
-    # or
-    docker stop hyyperwan-https # For the HTTPS container
-    ```
-
-5.  **Viewing Logs:**
-    ```bash
-    docker logs hyyperwan-http  # For the HTTP container
-    # or
-    docker logs hyyperwan-https # For the HTTPS container
-    ```
-
-**Note:** Running with `--net=host` and `--privileged` grants the container extensive access to the host system. Ensure you understand the security implications before using this method.
+   The application will be accessible at `http://server-ip:8080` (for HTTP service) or `https://server-ip:8443` (for HTTPS service).
 
 ## Configuration
 
