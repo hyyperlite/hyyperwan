@@ -89,33 +89,51 @@ HyyperWAN is a web application for controlling network conditions (latency, jitt
 
 You can also run HyyperWAN inside a Docker container. This requires building the image and running the container with specific privileges to allow interaction with the host's network interfaces.
 
+Example `Dockerfile.http` (for HTTP) and `Dockerfile.https` (for HTTPS) are provided in the `Docker/` directory.
+
 1.  **Build the Docker Image:**
-    Navigate to the root directory of the repository and run the build command. Using `--no-cache` ensures you incorporate the latest code changes.
+    Navigate to the root directory of the repository. To build the HTTP version (defaulting to port 8080):
 
     ```bash
-    docker build --no-cache -t hyyperwan -f Docker/Dockerfile .
+    docker build --no-cache -t hyyperwan-http -f Docker/Dockerfile.http .
+    ```
+
+    To build the HTTPS version (defaulting to port 8443):
+
+    ```bash
+    docker build --no-cache -t hyyperwan-https -f Docker/Dockerfile.https .
     ```
 
 2.  **Run the Docker Container:**
     Start the container in detached mode. `--net=host` allows the container to share the host's network stack, and `--privileged` grants the necessary permissions for `tc` and `tcpdump` operations on the host interfaces.
 
+    For HTTP:
     ```bash
-    docker run -d --name hyyperwan --net=host --privileged hyyperwan
+    docker run -d --name hyyperwan-http --net=host --privileged hyyperwan-http
+    ```
+
+    For HTTPS:
+    ```bash
+    docker run -d --name hyyperwan-https --net=host --privileged hyyperwan-https
     ```
 
 3.  **Access the Application:**
-    The application will be accessible via the host machine's IP address on port 8080 (or the port configured via environment variables, e.g., `FLASK_RUN_PORT`).
-
-    Example: `http://<host-ip>:8080`
+    The application will be accessible via the host machine's IP address.
+    - For HTTP: `http://<host-ip>:8080` (or the port configured via `FLASK_RUN_PORT`)
+    - For HTTPS: `https://<host-ip>:8443` (or the port configured via `FLASK_RUN_PORT`)
 
 4.  **Stopping the Container:**
     ```bash
-    docker stop hyyperwan
+    docker stop hyyperwan-http  # For the HTTP container
+    # or
+    docker stop hyyperwan-https # For the HTTPS container
     ```
 
 5.  **Viewing Logs:**
     ```bash
-    docker logs hyyperwan
+    docker logs hyyperwan-http  # For the HTTP container
+    # or
+    docker logs hyyperwan-https # For the HTTPS container
     ```
 
 **Note:** Running with `--net=host` and `--privileged` grants the container extensive access to the host system. Ensure you understand the security implications before using this method.
