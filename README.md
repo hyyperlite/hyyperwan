@@ -22,7 +22,7 @@ HyyperWAN is a web application for controlling network conditions (latency, jitt
 
 ## Installation
 
-### Option 1: Pull Docker Image from GitHub Container Registry (ghcr.io)
+### Option 1: Pull Docker Image from GitHub Container Registry (ghcr.io) [recommended, easiest]
 
 This is the recommended method for most users. Pre-built Docker images are available on GitHub Container Registry.
 
@@ -70,7 +70,7 @@ This is the recommended method for most users. Pre-built Docker images are avail
     docker logs hyyperwan-https # For the HTTPS container
     ```
 
-### Option 2: Build Docker Image from Dockerfile
+### Option 2: Build Docker Image from Dockerfile [next easiest]
 
 If you prefer to build the image yourself or need to make custom modifications. Example `Dockerfile.http` (for HTTP) and `Dockerfile.https` (for HTTPS) are provided in the `Docker/` directory of the repository.
 
