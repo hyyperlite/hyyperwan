@@ -142,11 +142,11 @@ td form button {
 .reset-all-button {
     width: 125px;
     padding: 12px 20px;
-    background-color: #b30000; 
+    background-color: #8b0000; /* MODIFIED: Matched to Apply/Remove buttons */
     color: white;
     font-size: 18px;
     font-weight: bold;
-    border: 2px solid #800000;
+    border: none; /* MODIFIED: Matched to Apply/Remove buttons */
     border-radius: 6px;
     cursor: pointer;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
@@ -154,7 +154,7 @@ td form button {
 }
 
 .reset-all-button:hover {
-    background-color: #cc0000;
+    background-color: #a00000; /* MODIFIED: Matched to Apply/Remove buttons hover */
     transform: translateY(-2px);
 }
 
@@ -387,15 +387,37 @@ button:disabled {
     margin-top: 10px;
 }
 
+/* Commenting out the old .tools-cell rule as it's superseded by more specific td.tools-cell */
+/*
 .tools-cell {
     vertical-align: top;
-    padding-top: 22px; /* Align with the first row of inputs in the Actions column */
+    padding-top: 22px; 
 }
+*/
 
 /* Action and Tools column styling */
-td.actions-cell, td.tools-cell {
-    vertical-align: normal;
-    padding: 10px;
+/* Splitting the original "td.actions-cell, td.tools-cell" for individual control */
+
+td.actions-cell {
+    vertical-align: top; /* MODIFIED: Align content to the top */
+    padding: 10px;          /* Base padding */
+    padding-top: 40px;      /* MODIFIED: Increased top padding to push content down */
+    /* Optional: If Actions column also needs width constraint: */
+    /* width: 380px; */ /* Adjust as needed */
+}
+
+/* New rule for the Tools column header */
+th.tools-header {
+    width: 130px;   /* Adjust width as needed to bring column left */
+    text-align: left; /* Ensure header text is left-aligned */
+}
+
+/* Styling for the Tools column cells */
+td.tools-cell {
+    vertical-align: top; /* MODIFIED: Align content to the top */
+    padding: 10px;          /* Base padding */
+    padding-top: 18px;      /* MODIFIED: Increased top padding for consistency */
+    width: 130px;           /* Match header width, adjust as needed */
 }
 
 /* Style for buttons in both columns */
@@ -408,8 +430,8 @@ td.actions-cell, td.tools-cell {
 }
 
 .tools-cell .capture-button {
-    background-color: #0055a5;
-    margin-top: 22px; /* Match the height of the form inputs */
+    background-color: #0055a5; /* Default blue, will be overridden by NAT status classes */
+    margin-top: 0; /* Let td.tools-cell padding-top handle the initial vertical spacing */
     display: block; /* Make it block level for consistent positioning */
 }
 
