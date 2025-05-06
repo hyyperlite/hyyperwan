@@ -418,6 +418,23 @@ td.actions-cell, td.tools-cell {
     background-color: #003d7a;
 }
 
+/* Styles for NAT button state within tools-cell */
+.tools-cell .capture-button.btn-danger {
+    background-color: #8b0000; /* Red for NAT OFF */
+}
+
+.tools-cell .capture-button.btn-danger:hover {
+    background-color: #a00000; /* Lighter red on hover */
+}
+
+.tools-cell .capture-button.btn-success {
+    background-color: #0055a5; /* Blue for NAT ON */
+}
+
+.tools-cell .capture-button.btn-success:hover {
+    background-color: #003d7a; /* Darker blue on hover */
+}
+
 .tools-cell .capture-unavailable-message {
     display: block;
     margin-top: 22px;
