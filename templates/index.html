@@ -56,7 +56,7 @@
                 <th>Loss</th>
                 <th>Jitter</th>
                 <th>Actions</th>
-                <th>Tools</th>
+                <th>Tools</th> {# Capture and NAT buttons will now be in this single column #}
             </tr>
         </thead>
         <tbody>
@@ -112,31 +112,31 @@
                 </td>
                 <td class="tools-cell">
                     {% if tcpdump_available %}
-                    <button type="button" class="capture-button" onclick="openCaptureModal('{{ interface.name }}', '{{ interface.alias }}')">
-                        Capture
-                    </button>
-                    {% else %}
-                    <span class="capture-unavailable-message">
-                        tcpdump not installed
-                    </span>
-                    {% endif %}
-                </td>
-                {% if iptables_available %}
-                <td>
-                    <form action="{{ url_for('toggle_nat', interface_name=interface.name) }}" method="POST" onsubmit="return confirm('Are you sure you want to {{ 'disable' if interface.nat_status else 'enable' }} Source NAT (Masquerade) on {{ interface.alias if interface.alias else interface.name }}?');">
-                        <input type="hidden" name="action" value="{{ 'disable' if interface.nat_status else 'enable' }}">
-                        <button type="submit" class="btn btn-sm {{ 'btn-success' if interface.nat_status else 'btn-warning' }}">
-                            {{ 'NAT ON' if interface.nat_status else 'NAT OFF' }}
+                        <button type="button" class="capture-button" onclick="openCaptureModal('{{ interface.name }}', '{{ interface.alias }}')">
+                            Capture
                         </button>
-                    </form>
+                    {% else %}
+                        <span class="capture-unavailable-message">tcpdump not installed</span>
+                    {% endif %}
+
+                    {# NAT Toggle Button - Placed below Capture button #}
+                    {# This div ensures the NAT button appears on a new line and has some top margin #}
+                    <div style="margin-top: 5px;">
+                        {% if iptables_available %}
+                            <form action="{{ url_for('toggle_nat', interface_name=interface.name) }}" method="POST" onsubmit="return confirm('Are you sure you want to {{ 'disable' if interface.nat_status else 'enable' }} Source NAT (Masquerade) on {{ interface.alias if interface.alias else interface.name }}?');" style="display: inline-block;">
+                                <input type="hidden" name="action" value="{{ 'disable' if interface.nat_status else 'enable' }}">
+                                <button type="submit" class="capture-button {{ 'btn-success' if interface.nat_status else 'btn-danger' }}">
+                                    {{ 'NAT ON' if interface.nat_status else 'NAT OFF' }}
+                                </button>
+                            </form>
+                        {% else %}
+                            {# Show NAT N/A button if iptables is not available #}
+                            <button type="button" class="capture-button btn-secondary" disabled data-toggle="tooltip" title="iptables command not found on system">
+                                NAT N/A
+                            </button>
+                        {% endif %}
+                    </div>
                 </td>
-                {% else %}
-                <td>
-                    <button type="button" class="btn btn-sm btn-secondary" disabled data-toggle="tooltip" title="iptables command not found on system">
-                        NAT N/A
-                    </button>
-                </td>
-                {% endif %}
             </tr>
             {% endfor %}
         </tbody>
