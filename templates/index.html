@@ -112,7 +112,9 @@
                 </td>
                 <td class="tools-cell">
                     {% if tcpdump_available %}
-                        <button type="button" class="capture-button" onclick="openCaptureModal('{{ interface.name }}', '{{ interface.alias }}')">
+                        <button type="button" class="capture-button"
+                                onclick="openCaptureModal('{{ interface.name }}', '{{ interface.alias }}')"
+                                title="Execute a tcpdump capture on this interface and download the resulting PCAP file.">
                             Capture
                         </button>
                     {% else %}
@@ -125,7 +127,9 @@
                         {% if iptables_available %}
                             <form action="{{ url_for('toggle_nat', interface_name=interface.name) }}" method="POST" onsubmit="return confirm('Are you sure you want to {{ 'disable' if interface.nat_status else 'enable' }} Source NAT (Masquerade) on {{ interface.alias if interface.alias else interface.name }}?');" style="display: inline-block;">
                                 <input type="hidden" name="action" value="{{ 'disable' if interface.nat_status else 'enable' }}">
-                                <button type="submit" class="capture-button {{ 'btn-success' if interface.nat_status else 'btn-danger' }}">
+                                <button type="submit"
+                                        class="capture-button {{ 'btn-success' if interface.nat_status else 'btn-danger' }}"
+                                        title="{% if interface.nat_status %}Click to disable Source NAT (Masquerade) on {{ interface.alias if interface.alias else interface.name }}.{% else %}Click to enable Source NAT (Masquerade) on {{ interface.alias if interface.alias else interface.name }} for routed traffic egressing this interface.{% endif %}">
                                     {{ 'NAT ON' if interface.nat_status else 'NAT OFF' }}
                                 </button>
                             </form>
