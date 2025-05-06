@@ -97,7 +97,7 @@ If you prefer to build the image yourself or need to make custom modifications. 
     cd Docker
 
     # Download the Dockerfiles
-    wget https://raw.githubusercontent.com/hyyperlite/hyyperwan/main/docker/Dockerfile.http
+    wget https://raw.githubusercontent.com/hyyperlite/hyyperwan/refs/heads/main/docker/Dockerfile.http
     wget https://raw.githubusercontent.com/hyyperlite/hyyperwan/main/docker/Dockerfile.https
     
     # Go back to the parent directory for the build context
