@@ -207,6 +207,7 @@ def list_interfaces():
                     try:
                         # Get current network condition settings
                         latency, loss, jitter = get_qdisc_settings(interface_name)
+                        nat_status = get_nat_status(interface_name) # Get NAT status
                         # Include both real name and alias in the interface data
                         interfaces.append({
                             'name': interface_name, 
@@ -214,7 +215,8 @@ def list_interfaces():
                             'ip': ip_address, 
                             'latency': latency, 
                             'loss': loss, 
-                            'jitter': jitter
+                            'jitter': jitter,
+                            'nat_status': nat_status # Add nat_status here
                         })
                     except Exception as e:
                         # If we can't get settings for one interface, still show it with default values
@@ -225,7 +227,8 @@ def list_interfaces():
                             'ip': ip_address, 
                             'latency': '0ms', 
                             'loss': '0%', 
-                            'jitter': '0ms'
+                            'jitter': '0ms',
+                            'nat_status': False # Default NAT status on error
                         })
         
         except json.JSONDecodeError as e:
@@ -404,29 +407,55 @@ def is_ip_available():
         logging.error(f"Error checking for ip command availability: {str(e)}")
         return False
 
+def is_iptables_available():
+    """Check if iptables is installed on the system"""
+    try:
+        result = subprocess.run(['which', 'iptables'], capture_output=True, text=True)
+        logging.info(f"iptables availability check: {'Available' if result.returncode == 0 else 'Not available'}")
+        return result.returncode == 0
+    except Exception as e:
+        logging.error(f"Error checking for iptables availability: {str(e)}")
+        return False
+
+def get_nat_status(interface):
+    """Check if NAT (Masquerade) is enabled for the given interface."""
+    if not is_iptables_available():
+        return False
+    try:
+        # Check if the MASQUERADE rule exists.
+        # -C checks without adding/deleting. Returns 0 if rule exists, non-zero otherwise.
+        cmd = ['sudo', 'iptables', '-t', 'nat', '-C', 'POSTROUTING', '-o', interface, '-j', 'MASQUERADE']
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False) # check=False to handle non-zero exit codes
+        log_command(cmd, f"Return code: {result.returncode}, Stdout: {result.stdout.strip()}, Stderr: {result.stderr.strip()}")
+        return result.returncode == 0  # True if rule exists (NAT is ON)
+    except Exception as e:
+        logging.error(f"Error checking NAT status for interface {interface}: {str(e)}")
+        return False # Assume NAT is OFF on error
+
 @app.route('/')
 def index():
     try:
         # Check if ip command is available first
         ip_available = is_ip_available()
-        
+        iptables_available = is_iptables_available() # Check for iptables
+
         # Only attempt to list interfaces if ip command is available
         interfaces = list_interfaces() if ip_available else []
-        
+
         hostname = socket.gethostname()
         tcpdump_available = is_tcpdump_available()
         tc_available = is_tc_available()
-        
-        return render_template('index.html', interfaces=interfaces, hostname=hostname, 
+
+        return render_template('index.html', interfaces=interfaces, hostname=hostname,
                               tcpdump_available=tcpdump_available, tc_available=tc_available,
-                              ip_available=ip_available)
+                              ip_available=ip_available, iptables_available=iptables_available) # Pass iptables_available
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}")
         flash("An error occurred while loading the page", "error")
         hostname = "Unknown"
-        return render_template('index.html', interfaces=[], hostname=hostname, 
+        return render_template('index.html', interfaces=[], hostname=hostname,
                               tcpdump_available=False, tc_available=False,
-                              ip_available=False)
+                              ip_available=False, iptables_available=False) # Pass iptables_available
 
 @app.route('/favicon.png')
 def favicon():
@@ -834,6 +863,50 @@ def download_capture(capture_id):
     except Exception as e:
         logging.error(f"Error downloading packet capture: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/toggle_nat/<interface_name>', methods=['POST'])
+def toggle_nat(interface_name):
+    if not is_iptables_available():
+        flash("iptables command not found on the system.", "error")
+        return redirect(url_for('index'))
+
+    action = request.form.get('action') # Expected 'enable' or 'disable'
+    display_name = get_interface_alias(interface_name) # Use alias for messages
+
+    if action == 'enable':
+        # Check if rule already exists to prevent duplicate error from iptables
+        if get_nat_status(interface_name):
+            flash(f"Source NAT (Masquerade) is already enabled on {display_name}.", "info")
+            return redirect(url_for('index'))
+        cmd = ['sudo', 'iptables', '-t', 'nat', '-A', 'POSTROUTING', '-o', interface_name, '-j', 'MASQUERADE']
+        success_msg = f"Source NAT (Masquerade) enabled on {display_name}."
+        error_msg = f"Error enabling Source NAT on {display_name}."
+    elif action == 'disable':
+        # Check if rule exists before trying to delete
+        if not get_nat_status(interface_name):
+            flash(f"Source NAT (Masquerade) is already disabled on {display_name}.", "info")
+            return redirect(url_for('index'))
+        cmd = ['sudo', 'iptables', '-t', 'nat', '-D', 'POSTROUTING', '-o', interface_name, '-j', 'MASQUERADE']
+        success_msg = f"Source NAT (Masquerade) disabled on {display_name}."
+        error_msg = f"Error disabling Source NAT on {display_name}."
+    else:
+        flash("Invalid action specified for NAT operation.", "error")
+        return redirect(url_for('index'))
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        log_command(cmd, f"Return code: {result.returncode}, Stdout: {result.stdout.strip()}, Stderr: {result.stderr.strip()}")
+        if result.returncode == 0:
+            flash(success_msg, "success")
+        else:
+            # More specific error logging from iptables
+            flash(f"{error_msg}: {result.stderr.strip()}", "error")
+            logging.error(f"{error_msg} Command: {' '.join(cmd)}, Output: {result.stderr.strip()}")
+    except Exception as e:
+        logging.error(f"Exception during NAT operation for {interface_name} with action {action}: {str(e)}")
+        flash(f"An unexpected error occurred while toggling NAT: {str(e)}", "error")
+    
+    return redirect(url_for('index'))
 
 # Ensure all captures are stopped and clean up the pcap directory when the application exits
 import atexit

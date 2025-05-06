@@ -121,6 +121,22 @@
                     </span>
                     {% endif %}
                 </td>
+                {% if iptables_available %}
+                <td>
+                    <form action="{{ url_for('toggle_nat', interface_name=interface.name) }}" method="POST" onsubmit="return confirm('Are you sure you want to {{ 'disable' if interface.nat_status else 'enable' }} Source NAT (Masquerade) on {{ interface.alias if interface.alias else interface.name }}?');">
+                        <input type="hidden" name="action" value="{{ 'disable' if interface.nat_status else 'enable' }}">
+                        <button type="submit" class="btn btn-sm {{ 'btn-success' if interface.nat_status else 'btn-warning' }}">
+                            {{ 'NAT ON' if interface.nat_status else 'NAT OFF' }}
+                        </button>
+                    </form>
+                </td>
+                {% else %}
+                <td>
+                    <button type="button" class="btn btn-sm btn-secondary" disabled data-toggle="tooltip" title="iptables command not found on system">
+                        NAT N/A
+                    </button>
+                </td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>
