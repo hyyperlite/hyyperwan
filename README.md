@@ -2,6 +2,9 @@
 
 HyyperWAN is a web application for controlling network conditions (latency, jitter, and packet loss) on Linux systems using tc qdisc. A per interface packet capture utility (using tcpdump) is also included.
 
+New: Now also includes the ability to enable/disable source NAT per interface using iptables masquerede rules
+New: Able to run as a docker containter.  Can be built using provided example Docker files.  Pre-built containers are also available via Git Hub Container Registry (ghcr.io)
+
 ## Features
 
 - Set and control network latency
@@ -11,14 +14,21 @@ HyyperWAN is a web application for controlling network conditions (latency, jitt
 - Capture network packets with tcpdump for traffic analysis
 - Support for both HTTP and HTTPS
 - View current network condition settings per interface
+- Enable / disable source NAT per interfece
 
 ## Requirements
 
-- Linux operating system
+- Linux operating system (Debian)
+
+When run locally on host machine:
 - Python 3.8 or higher
-- Root privileges (for tc commands and packet capture)
+- Root/sudo privileges (for tc commands and packet capture)
 - iproute2 package (for the `ip` command)
 - tcpdump (for packet capture functionality)
+- iptables (for source nat functionality)
+
+When run as container:
+- Docker
 
 ## Installation
 
