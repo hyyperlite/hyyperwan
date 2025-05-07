@@ -407,30 +407,51 @@ def is_ip_available():
         logging.error(f"Error checking for ip command availability: {str(e)}")
         return False
 
+def is_running_in_container():
+    """Check if the application is running inside a Docker container."""
+    # This is a common way to check, but might not be 100% foolproof in all container environments.
+    return os.path.exists('/.dockerenv')
+
 def is_iptables_available():
-    """Check if iptables is installed on the system"""
-    try:
-        result = subprocess.run(['which', 'iptables'], capture_output=True, text=True)
-        logging.info(f"iptables availability check: {'Available' if result.returncode == 0 else 'Not available'}")
-        return result.returncode == 0
-    except Exception as e:
-        logging.error(f"Error checking for iptables availability: {str(e)}")
+    """Check if iptables (and nsenter if in container) is available."""
+    iptables_path = shutil.which('iptables')
+    if not iptables_path:
+        logging.warning("iptables command not found.")
         return False
+
+    if is_running_in_container():
+        nsenter_path = shutil.which('nsenter')
+        if not nsenter_path:
+            logging.warning("Running in container, but nsenter command not found. Cannot manage host NAT rules.")
+            return False
+        logging.info("iptables and nsenter are available in the container. Host NAT management will be attempted.")
+    else:
+        logging.info("iptables is available on the host.")
+    return True
 
 def get_nat_status(interface):
     """Check if NAT (Masquerade) is enabled for the given interface."""
     if not is_iptables_available():
         return False
+    
+    base_cmd_parts = ['iptables', '-t', 'nat', '-C', 'POSTROUTING', '-o', interface, '-j', 'MASQUERADE']
+    final_cmd = []
+    log_context_message = ""
+
+    if is_running_in_container():
+        final_cmd = ['nsenter', '--target', '1', '--net'] + base_cmd_parts
+        log_context_message = "host (via nsenter from container)"
+    else:
+        final_cmd = ['sudo'] + base_cmd_parts
+        log_context_message = "host (direct sudo)"
+
     try:
-        # Check if the MASQUERADE rule exists.
-        # -C checks without adding/deleting. Returns 0 if rule exists, non-zero otherwise.
-        cmd = ['sudo', 'iptables', '-t', 'nat', '-C', 'POSTROUTING', '-o', interface, '-j', 'MASQUERADE']
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False) # check=False to handle non-zero exit codes
-        log_command(cmd, f"Return code: {result.returncode}, Stdout: {result.stdout.strip()}, Stderr: {result.stderr.strip()}")
-        return result.returncode == 0  # True if rule exists (NAT is ON)
+        result = subprocess.run(final_cmd, capture_output=True, text=True, check=False)
+        log_command(final_cmd, f"Return code: {result.returncode}, Stdout: {result.stdout.strip()}, Stderr: {result.stderr.strip()} (Context: {log_context_message})")
+        return result.returncode == 0
     except Exception as e:
-        logging.error(f"Error checking NAT status for interface {interface}: {str(e)}")
-        return False # Assume NAT is OFF on error
+        logging.error(f"Error checking NAT status for interface {interface} (Context: {log_context_message}): {str(e)}")
+        return False
 
 @app.route('/')
 def index():
@@ -662,7 +683,7 @@ def start_capture():
         filter_parts = []
         
         # Process host filter
-        if host_filter:
+        if (host_filter):
             hosts = host_filter.split(',')
             hosts = [h.strip() for h in hosts if h.strip()]
             if hosts:
@@ -703,7 +724,7 @@ def start_capture():
         cmd = ['sudo', 'tcpdump', '-i', interface, '-w', pcap_file, '-c', '10000']  # Base command
 
         # Add -Z option only if not running inside a Docker container
-        if not os.path.exists('/.dockerenv'):
+        if not is_running_in_container(): # MODIFIED: Use the helper function
             try:
                 # Get the login name of the user running the script
                 login_user = os.getlogin()
@@ -867,43 +888,60 @@ def download_capture(capture_id):
 @app.route('/toggle_nat/<interface_name>', methods=['POST'])
 def toggle_nat(interface_name):
     if not is_iptables_available():
-        flash("iptables command not found on the system.", "error")
+        flash("iptables (and nsenter if in container) command not found.", "error")
         return redirect(url_for('index'))
 
-    action = request.form.get('action') # Expected 'enable' or 'disable'
-    display_name = get_interface_alias(interface_name) # Use alias for messages
+    action = request.form.get('action')
+    display_name = get_interface_alias(interface_name)
+
+    iptables_base_cmd_parts = ['iptables', '-t', 'nat']
+    rule_specific_parts = ['POSTROUTING', '-o', interface_name, '-j', 'MASQUERADE']
+    
+    cmd_prefix_list = []
+    log_context_message = ""
+
+    if is_running_in_container():
+        cmd_prefix_list = ['nsenter', '--target', '1', '--net']
+        log_context_message = "host (via nsenter from container)"
+    else:
+        cmd_prefix_list = ['sudo']
+        log_context_message = "host (direct sudo)"
+
+    # Determine current NAT status using the correct context
+    current_nat_status = get_nat_status(interface_name)
+
+    final_cmd = []
+    success_msg = ""
+    error_msg = ""
 
     if action == 'enable':
-        # Check if rule already exists to prevent duplicate error from iptables
-        if get_nat_status(interface_name):
-            flash(f"Source NAT (Masquerade) is already enabled on {display_name}.", "info")
+        if current_nat_status:
+            flash(f"Source NAT (Masquerade) is already enabled on {log_context_message} for {display_name}.", "info")
             return redirect(url_for('index'))
-        cmd = ['sudo', 'iptables', '-t', 'nat', '-A', 'POSTROUTING', '-o', interface_name, '-j', 'MASQUERADE']
-        success_msg = f"Source NAT (Masquerade) enabled on {display_name}."
-        error_msg = f"Error enabling Source NAT on {display_name}."
+        final_cmd = cmd_prefix_list + iptables_base_cmd_parts + ['-A'] + rule_specific_parts
+        success_msg = f"Source NAT (Masquerade) enabled on {log_context_message} for {display_name}."
+        error_msg = f"Error enabling Source NAT on {log_context_message} for {display_name}."
     elif action == 'disable':
-        # Check if rule exists before trying to delete
-        if not get_nat_status(interface_name):
-            flash(f"Source NAT (Masquerade) is already disabled on {display_name}.", "info")
+        if not current_nat_status:
+            flash(f"Source NAT (Masquerade) is already disabled on {log_context_message} for {display_name}.", "info")
             return redirect(url_for('index'))
-        cmd = ['sudo', 'iptables', '-t', 'nat', '-D', 'POSTROUTING', '-o', interface_name, '-j', 'MASQUERADE']
-        success_msg = f"Source NAT (Masquerade) disabled on {display_name}."
-        error_msg = f"Error disabling Source NAT on {display_name}."
+        final_cmd = cmd_prefix_list + iptables_base_cmd_parts + ['-D'] + rule_specific_parts
+        success_msg = f"Source NAT (Masquerade) disabled on {log_context_message} for {display_name}."
+        error_msg = f"Error disabling Source NAT on {log_context_message} for {display_name}."
     else:
         flash("Invalid action specified for NAT operation.", "error")
         return redirect(url_for('index'))
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        log_command(cmd, f"Return code: {result.returncode}, Stdout: {result.stdout.strip()}, Stderr: {result.stderr.strip()}")
+        result = subprocess.run(final_cmd, capture_output=True, text=True, check=False)
+        log_command(final_cmd, f"Return code: {result.returncode}, Stdout: {result.stdout.strip()}, Stderr: {result.stderr.strip()} (Context: {log_context_message})")
         if result.returncode == 0:
             flash(success_msg, "success")
         else:
-            # More specific error logging from iptables
             flash(f"{error_msg}: {result.stderr.strip()}", "error")
-            logging.error(f"{error_msg} Command: {' '.join(cmd)}, Output: {result.stderr.strip()}")
+            logging.error(f"{error_msg} Command: {' '.join(final_cmd)}, Output: {result.stderr.strip()}")
     except Exception as e:
-        logging.error(f"Exception during NAT operation for {interface_name} with action {action}: {str(e)}")
+        logging.error(f"Exception during NAT operation for {interface_name} (Context: {log_context_message}): {str(e)}")
         flash(f"An unexpected error occurred while toggling NAT: {str(e)}", "error")
     
     return redirect(url_for('index'))
