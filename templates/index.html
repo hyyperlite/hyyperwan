@@ -24,7 +24,7 @@
 </head>
 <body>
     <div class="hostname-display">hostname: {{ hostname }}</div>
-    <h1>HyyperWan</h1>
+    <h1>HyyperWAN</h1>
     
     <!-- Flash messages section -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -56,7 +56,9 @@
                 <th>Loss</th>
                 <th>Jitter</th>
                 <th>Actions</th>
+                {% if not tools_column_disabled %}
                 <th class="tools-header">Tools</th> {# Capture and NAT buttons will now be in this single column #}
+                {% endif %}
             </tr>
         </thead>
         <tbody>
@@ -110,6 +112,7 @@
                     </span>
                     {% endif %}
                 </td>
+                {% if not tools_column_disabled %}
                 <td class="tools-cell">
                     {% if tcpdump_available %}
                         <button type="button" class="capture-button"
@@ -141,6 +144,7 @@
                         {% endif %}
                     </div>
                 </td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>

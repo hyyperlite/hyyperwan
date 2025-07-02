@@ -1,30 +1,40 @@
-import subprocess
-import json
-import re
 import os
-import uuid
-import time
-import threading
-import signal
+import logging
 import shutil
+import subprocess
+import threading
+import atexit
+import json
+import time
+import re
 import socket
+import uuid
+import signal
+
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
 from flask import send_from_directory
-import logging
+
+# Configure logging as early as possible
+logging.basicConfig(
+    filename='app.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(process)d - %(threadName)s - %(module)s - %(funcName)s - %(lineno)d - %(message)s'
+)
 
 # Make dotenv optional
 try:
     from dotenv import load_dotenv
-    load_dotenv()  # Load environment variables from .env
+    if load_dotenv(): # load_dotenv() returns True if a .env file was loaded
+        logging.info("Successfully loaded environment variables from .env file.")
+    else:
+        # This means .env was not found, or it was empty. Not an error.
+        logging.info(".env file not found or is empty. Continuing without it.")
 except ImportError:
-    # dotenv is not installed, just continue without it
-    logging.warning("python-dotenv not installed, continuing without loading .env file")
+    # This means python-dotenv is not installed.
+    logging.warning("python-dotenv not installed. Cannot load .env file. Consider installing with 'pip install python-dotenv'.")
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Needed for flashing messages
-
-# Configure logging
-logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 
 # Path to store interface aliases
 ALIASES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'interface_aliases.json')
@@ -466,17 +476,20 @@ def index():
         hostname = socket.gethostname()
         tcpdump_available = is_tcpdump_available()
         tc_available = is_tc_available()
+        tools_column_disabled = os.getenv('DISABLE_TOOLS_COLUMN', 'false').lower() == 'true'
 
         return render_template('index.html', interfaces=interfaces, hostname=hostname,
                               tcpdump_available=tcpdump_available, tc_available=tc_available,
-                              ip_available=ip_available, iptables_available=iptables_available) # Pass iptables_available
+                              ip_available=ip_available, iptables_available=iptables_available,
+                              tools_column_disabled=tools_column_disabled)
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}")
         flash("An error occurred while loading the page", "error")
         hostname = "Unknown"
         return render_template('index.html', interfaces=[], hostname=hostname,
                               tcpdump_available=False, tc_available=False,
-                              ip_available=False, iptables_available=False) # Pass iptables_available
+                              ip_available=False, iptables_available=False,
+                              tools_column_disabled=False)
 
 @app.route('/favicon.png')
 def favicon():
@@ -971,28 +984,64 @@ atexit.register(cleanup_on_exit)
 
 if __name__ == '__main__':
     host = os.getenv('FLASK_RUN_HOST', '0.0.0.0')
-    
-    # Add safe port parsing with error handling
-    try:
-        port = int(os.getenv('FLASK_RUN_PORT', 8080))
-    except ValueError:
-        logging.error("Invalid port specified in environment variables, using default 8080")
-        port = 8080
-    
-    # Get SSL configuration from environment variables
-    use_https = os.getenv('USE_HTTPS', 'false').lower() == 'true'
-    cert_path = os.getenv('SSL_CERT_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'certificates/cert.pem'))
-    key_path = os.getenv('SSL_KEY_PATH', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'certificates/key.pem'))
-    
-    # Check if SSL is enabled and certificates exist
-    if use_https and os.path.exists(cert_path) and os.path.exists(key_path):
-        logging.info(f"Starting application with HTTPS on {host}:{port}")
-        app.run(host=host, port=port, ssl_context=(cert_path, key_path), debug=True)
-    else:
+    port_env = os.getenv('FLASK_RUN_PORT')
+    use_https_env = os.getenv('USE_HTTPS', 'false').lower()
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+
+    use_https = (use_https_env == 'true')
+    port = None
+
+    if port_env:
+        try:
+            port = int(port_env)
+            logging.info(f"FLASK_RUN_PORT environment variable set, using port {port}.")
+        except ValueError:
+            logging.error(f"Invalid value for FLASK_RUN_PORT: '{port_env}'. Falling back to default port.")
+            # port remains None, default will be chosen below
+
+    if port is None:  # FLASK_RUN_PORT was not set or was invalid
         if use_https:
-            logging.warning("HTTPS was requested but certificates not found at:")
-            logging.warning(f"Certificate: {cert_path}")
-            logging.warning(f"Key: {key_path}")
-            logging.warning("Falling back to HTTP")
-        logging.info(f"Starting application with HTTP on {host}:{port}")
-        app.run(host=host, port=port, debug=True)
+            port = 8443  # Default HTTPS port
+            logging.info(f"FLASK_RUN_PORT not set or invalid. Defaulting to HTTPS port {port}.")
+        else:
+            port = 8080  # Default HTTP port
+            logging.info(f"FLASK_RUN_PORT not set or invalid. Defaulting to HTTP port {port}.")
+
+    run_kwargs = {'host': host, 'port': port, 'debug': debug_mode}
+
+    if use_https:
+        ssl_cert_path = os.getenv('SSL_CERT_PATH')
+        ssl_key_path = os.getenv('SSL_KEY_PATH')
+        
+        https_configured_properly = True
+        if not ssl_cert_path or not os.path.exists(ssl_cert_path):
+            logging.error(f"SSL_CERT_PATH ('{ssl_cert_path}') is not set or the file does not exist.")
+            https_configured_properly = False
+        
+        if not ssl_key_path or not os.path.exists(ssl_key_path):
+            logging.error(f"SSL_KEY_PATH ('{ssl_key_path}') is not set or the file does not exist.")
+            https_configured_properly = False
+
+        if https_configured_properly:
+            run_kwargs['ssl_context'] = (ssl_cert_path, ssl_key_path)
+            logging.info(f"Attempting to start Flask app in HTTPS mode on {host}:{port}")
+        else:
+            logging.warning("SSL configuration is incomplete or invalid. Falling back to HTTP mode.")
+            # If falling back from HTTPS, and the port was the default HTTPS port (8443)
+            # AND it was not explicitly set by FLASK_RUN_PORT, change to default HTTP port (8080).
+            if port == 8443 and not port_env: 
+                port = 8080
+                run_kwargs['port'] = port
+                logging.info(f"Fallback HTTP mode will run on default HTTP port {port}.")
+            else:
+                logging.info(f"Fallback HTTP mode will run on port {port}.")
+            # Remove ssl_context if it was added, though it wouldn't be in this path
+            run_kwargs.pop('ssl_context', None) 
+    else:
+        logging.info(f"Attempting to start Flask app in HTTP mode on {host}:{port}")
+
+    try:
+        app.run(**run_kwargs)
+    except Exception as e:
+        # Log the full exception traceback for better debugging
+        logging.exception(f"Failed to start Flask application on {host}:{port}. Error: {e}")

@@ -61,6 +61,22 @@ This is the recommended method for most users. Pre-built Docker images are avail
     docker run -d --name hyyperwan-https --net=host --privileged --restart unless-stopped ghcr.io/hyyperlite/hyyperwan-https:latest
     ```
 
+    **Optional: Customizing Configuration with Environment Variables**
+
+    You can customize the container's behavior by passing environment variables using the `-e` flag in the `docker run` command.
+
+    -   **Changing the Listening Port:**
+        To change the default listening port (8080 for HTTP, 8443 for HTTPS), use the `FLASK_RUN_PORT` variable. For example, to run the HTTP container on port 80:
+        ```bash
+        docker run -d --name hyyperwan-http --net=host --privileged --restart unless-stopped -e FLASK_RUN_PORT=80 ghcr.io/hyyperlite/hyyperwan-http:latest
+        ```
+
+    -   **Hiding the Tools Column:**
+        To hide the "Tools" column (which contains the packet capture and NAT toggle buttons), set the `DISABLE_TOOLS_COLUMN` variable to `true`. By default, this column is displayed.
+        ```bash
+        docker run -d --name hyyperwan-http --net=host --privileged --restart unless-stopped -e DISABLE_TOOLS_COLUMN=true ghcr.io/hyyperlite/hyyperwan-http:latest
+        ```
+
 3.  **Access the Application:**
     The application will be accessible via the host machine's IP address.
     - For HTTP: `http://<host-ip>:8080` (or the port configured via `FLASK_RUN_PORT`)

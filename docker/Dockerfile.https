@@ -1,32 +1,26 @@
-# Stage 1: Clone the repository
-FROM alpine/git AS clone
-WORKDIR /app
-# Note: Cloning directly in Dockerfile might fetch the latest commit, not necessarily the local state.
-# Consider copying local files instead if building from a local context is preferred.
-RUN git clone https://github.com/hyyperlite/hyyperwan.git .
-
-# Stage 2: Build the final image for HTTPS
+# Stage 1: Build the final image for HTTPS
 FROM python:3.10-slim
 
-# Install system dependencies required for tc (iproute2) and tcpdump
+# Install system dependencies required for tc (iproute2), tcpdump, iptables, sudo, and nsenter
 RUN apt-get update && apt-get install -y --no-install-recommends \
     iproute2 \
     tcpdump \
     iptables \
     sudo \
+    util-linux \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy requirements and application code from the clone stage
-COPY --from=clone /app/requirements.txt .
-COPY --from=clone /app/app.py .
-COPY --from=clone /app/templates ./templates
-COPY --from=clone /app/static ./static
-COPY --from=clone /app/ignored_interfaces.json .
+# Copy requirements and application code from the build context
+COPY requirements.txt .
+COPY app.py .
+COPY templates ./templates
+COPY static ./static
+COPY ignored_interfaces.json .
 # Copy certificates needed for HTTPS
-COPY --from=clone /app/certificates ./certificates
+COPY certificates ./certificates
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt

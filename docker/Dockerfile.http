@@ -1,9 +1,4 @@
-# Stage 1: Clone the repository
-FROM alpine/git AS clone
-WORKDIR /app
-RUN git clone https://github.com/hyyperlite/hyyperwan.git .
-
-# Stage 2: Build the final image
+# Stage 1: Build the final image
 FROM python:3.10-slim
 
 # Install system dependencies required for tc (iproute2), tcpdump, iptables, and nsenter
@@ -18,14 +13,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy requirements and application code from the clone stage
-COPY --from=clone /app/requirements.txt .
-COPY --from=clone /app/app.py .
-COPY --from=clone /app/templates ./templates
-COPY --from=clone /app/static ./static
-COPY --from=clone /app/ignored_interfaces.json .
+# Copy requirements and application code from the build context
+COPY requirements.txt .
+COPY app.py .
+COPY templates ./templates
+COPY static ./static
+COPY ignored_interfaces.json .
 # Optional: Copy certificates if they are in the source repo and needed inside the container
-# COPY --from=clone /app/certificates ./certificates
+# COPY certificates ./certificates
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
