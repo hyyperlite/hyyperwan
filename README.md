@@ -282,6 +282,7 @@ You can customize the application behavior using environment variables in the `.
 - `USE_HTTPS`: Whether to use HTTPS (default: false)
 - `SSL_CERT_PATH`: Path to SSL certificate (default: certificates/cert.pem)
 - `SSL_KEY_PATH`: Path to SSL key (default: certificates/key.pem)
+- `DISABLE_TOOLS_COLUMN` Set to "true" if want to disable tools column from displan (nat/packet capture).
 
 ### HTTPS Configuration
 
