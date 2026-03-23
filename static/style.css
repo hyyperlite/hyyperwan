@@ -395,6 +395,12 @@ td {
     margin-top: 1px;
 }
 
+.iface-link {
+    text-decoration: none;
+    transition: color var(--transition);
+}
+.iface-link:hover { color: var(--accent-light); text-decoration: underline; }
+
 .alias-edit-btn {
     display: inline-block;
     margin-top: 5px;

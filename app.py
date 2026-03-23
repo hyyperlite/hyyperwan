@@ -1234,6 +1234,118 @@ def del_route_handler():
 
 # Ensure all captures are stopped and clean up the pcap directory when the application exits
 import atexit
+# ---------------------------------------------------------------------------
+# Interface detail page — helpers
+# ---------------------------------------------------------------------------
+
+def read_proc_net_dev(interface):
+    """Read rx/tx byte counters directly from /proc/net/dev (no subprocess)."""
+    try:
+        with open('/proc/net/dev', 'r') as f:
+            for line in f:
+                if ':' not in line:
+                    continue
+                iface, data = line.split(':', 1)
+                if iface.strip() == interface:
+                    fields = data.split()
+                    return {'rx_bytes': int(fields[0]), 'tx_bytes': int(fields[8]),
+                            'timestamp': time.time()}
+    except Exception as e:
+        logging.error(f"Error reading /proc/net/dev for {interface}: {e}")
+    return None
+
+
+def get_interface_addresses(interface):
+    """Return list of dicts {address, family} for an interface via 'ip addr show'."""
+    try:
+        result = subprocess.run(['ip', 'addr', 'show', 'dev', interface],
+                                capture_output=True, text=True)
+        addrs = []
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line.startswith('inet ') or line.startswith('inet6 '):
+                parts = line.split()
+                family = parts[0]
+                address = parts[1]
+                addrs.append({'address': address, 'family': family})
+        return addrs
+    except Exception as e:
+        logging.error(f"Error getting addresses for {interface}: {e}")
+        return []
+
+
+def exec_ip_addr(action, interface, address):
+    """
+    Run 'sudo ip addr add|del <address> dev <interface>'.
+    With --net=host Docker deployments this modifies the host directly.
+    Returns (success, stderr).
+    """
+    cmd = ['sudo', 'ip', 'addr', action, address, 'dev', interface]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    log_command(cmd, result.stdout + result.stderr)
+    return result.returncode == 0, result.stderr.strip()
+
+
+# ---------------------------------------------------------------------------
+# Interface detail page — routes
+# ---------------------------------------------------------------------------
+
+@app.route('/interface/<name>')
+def interface_detail(name):
+    try:
+        hostname = socket.gethostname()
+        alias = get_interface_alias(name)
+        addresses = get_interface_addresses(name)
+        stats = read_proc_net_dev(name)
+        return render_template('interface.html',
+                               hostname=hostname,
+                               iface_name=name,
+                               iface_alias=alias,
+                               addresses=addresses,
+                               initial_stats=stats)
+    except Exception as e:
+        logging.error(f"Error in interface_detail for {name}: {e}")
+        flash(f"Error loading interface detail: {e}", "error")
+        return redirect(url_for('index'))
+
+
+@app.route('/interface/<name>/stats')
+def interface_stats(name):
+    """JSON endpoint — returns current rx/tx byte counters and timestamp."""
+    stats = read_proc_net_dev(name)
+    if stats is None:
+        return jsonify({'error': f'Interface {name} not found in /proc/net/dev'}), 404
+    return jsonify(stats)
+
+
+@app.route('/interface/<name>/add_addr', methods=['POST'])
+def interface_add_addr(name):
+    address = request.form.get('address', '').strip()
+    if not address:
+        flash("Address is required (e.g. 192.168.1.10/24 or 2001:db8::1/64)", "error")
+        return redirect(url_for('interface_detail', name=name))
+    ok, err = exec_ip_addr('add', name, address)
+    if ok:
+        flash(f"Added {address} to {name}. Note: address changes are temporary and will not survive a reboot.", "success")
+    else:
+        flash(f"Failed to add {address} to {name}: {err}", "error")
+    return redirect(url_for('interface_detail', name=name))
+
+
+@app.route('/interface/<name>/del_addr', methods=['POST'])
+def interface_del_addr(name):
+    address = request.form.get('address', '').strip()
+    if not address:
+        flash("No address specified.", "error")
+        return redirect(url_for('interface_detail', name=name))
+    ok, err = exec_ip_addr('del', name, address)
+    if ok:
+        flash(f"Removed {address} from {name}.", "success")
+    else:
+        flash(f"Failed to remove {address} from {name}: {err}", "error")
+    return redirect(url_for('interface_detail', name=name))
+
+
 def cleanup_on_exit():
     # First stop any active captures
     for capture_id, capture_info in active_captures.items():

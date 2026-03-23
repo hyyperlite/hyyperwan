@@ -87,9 +87,11 @@
                 <!-- Interface name + alias -->
                 <td class="iface-cell">
                     <div id="alias-display-{{ interface.name }}">
-                        <div class="iface-name">{{ interface.name }}</div>
+                        <a href="{{ url_for('interface_detail', name=interface.name) }}"
+                           class="iface-name iface-link">{{ interface.name }}</a>
                         {% if interface.alias %}
-                        <div class="iface-alias">{{ interface.alias }}</div>
+                        <a href="{{ url_for('interface_detail', name=interface.name) }}"
+                           class="iface-alias iface-link">{{ interface.alias }}</a>
                         {% endif %}
                         <button type="button" class="alias-edit-btn"
                                 onclick="toggleAliasForm('{{ interface.name }}')">

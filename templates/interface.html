@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyyperWAN — {{ iface_name }}</title>
+    <script>
+        (function () {
+            var t = localStorage.getItem('hyyperwan-theme') || '';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <style>
+        .iface-heading {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .iface-heading h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        .iface-heading .iface-alias-h {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        .detail-section {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+        .detail-section-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+        /* Address table */
+        .addr-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        .addr-table th {
+            text-align: left;
+            padding: 6px 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        .addr-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+        .addr-table tr:last-child td { border-bottom: none; }
+        .addr-table tr:hover td { background: var(--bg-row-hover); }
+        .family-badge {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            font-family: monospace;
+        }
+        .family-inet  { background: rgba(37,99,235,0.15); color: #60a5fa; }
+        .family-inet6 { background: rgba(124,58,237,0.15); color: #a78bfa; }
+        .addr-mono { font-family: 'Courier New', monospace; font-size: 0.88rem; }
+
+        /* Add address form */
+        .add-addr-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border);
+        }
+        .add-addr-form input[type="text"] {
+            padding: 6px 10px;
+            font-size: 0.85rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-strong);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            min-width: 220px;
+            flex: 1;
+        }
+        .add-addr-form input[type="text"]:focus { outline: none; border-color: var(--accent); }
+        .add-addr-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        /* Bandwidth graph */
+        .graph-wrap {
+            position: relative;
+            height: 260px;
+        }
+        .graph-stats {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .stat-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.82rem;
+        }
+        .stat-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .dot-rx { background: #22c55e; }
+        .dot-tx { background: #3b82f6; }
+        .stat-label { color: var(--text-muted); }
+        .stat-value { font-family: 'Courier New', monospace; font-weight: 700; color: var(--text-primary); min-width: 80px; }
+
+        .temp-warning {
+            background: var(--warning-bg);
+            color: var(--warning-text);
+            border: 1px solid var(--warning-border);
+            border-left: 4px solid var(--warning-border);
+            border-radius: var(--radius);
+            padding: 8px 12px;
+            font-size: 0.82rem;
+            margin-bottom: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar">
+    <span class="navbar-brand">HyyperWAN</span>
+    <div class="navbar-links">
+        <a href="{{ url_for('index') }}" class="nav-link">Interfaces</a>
+        <a href="{{ url_for('routes_page') }}" class="nav-link">Routes</a>
+    </div>
+    <div class="navbar-right">
+        <span class="hostname-badge"><span class="badge-label">Host:</span> {{ hostname }}</span>
+        <button class="theme-btn" id="themeBtn" onclick="cycleTheme()"><span class="badge-label">Theme:</span> Dark Red</button>
+    </div>
+</nav>
+
+<main class="main-content">
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages">
+        {% for category, message in messages %}
+        <div class="flash-message {{ category }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Heading -->
+    <div class="iface-heading">
+        <h2>{{ iface_name }}</h2>
+        {% if iface_alias %}
+        <span class="iface-alias-h">{{ iface_alias }}</span>
+        {% endif %}
+    </div>
+
+    <!-- ===================================================================
+         IP Address Management
+         =================================================================== -->
+    <div class="detail-section">
+        <div class="detail-section-title">IP Addresses</div>
+
+        <div class="temp-warning">
+            &#9888; Address changes made here are temporary and will not survive a reboot.
+            Use your distribution's network configuration tools (e.g. Netplan, NetworkManager) for persistent changes.
+        </div>
+
+        {% if addresses %}
+        <table class="addr-table">
+            <thead>
+                <tr>
+                    <th>Family</th>
+                    <th>Address / Prefix</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for addr in addresses %}
+            <tr>
+                <td>
+                    <span class="family-badge {% if addr.family == 'inet' %}family-inet{% else %}family-inet6{% endif %}">
+                        {{ addr.family }}
+                    </span>
+                </td>
+                <td><span class="addr-mono">{{ addr.address }}</span></td>
+                <td>
+                    <form action="{{ url_for('interface_del_addr', name=iface_name) }}" method="post"
+                          style="display:inline"
+                          onsubmit="return confirm('Remove {{ addr.address }} from {{ iface_name }}?')">
+                        <input type="hidden" name="address" value="{{ addr.address }}">
+                        <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:var(--text-muted); font-size:0.88rem; margin-bottom:10px;">No addresses assigned.</p>
+        {% endif %}
+
+        <!-- Add address form -->
+        <form action="{{ url_for('interface_add_addr', name=iface_name) }}" method="post"
+              class="add-addr-form">
+            <span class="add-addr-label">Add address:</span>
+            <input type="text" name="address" placeholder="e.g. 192.168.1.10/24 or 2001:db8::1/64" required>
+            <button type="submit" class="btn btn-primary btn-sm">Add</button>
+        </form>
+    </div>
+
+    <!-- ===================================================================
+         Bandwidth Monitor
+         =================================================================== -->
+    <div class="detail-section">
+        <div class="detail-section-title">Bandwidth Monitor — live (1 s polling)</div>
+
+        <div class="graph-stats">
+            <div class="stat-pill">
+                <span class="stat-dot dot-rx"></span>
+                <span class="stat-label">RX:</span>
+                <span class="stat-value" id="rxRate">— bps</span>
+            </div>
+            <div class="stat-pill">
+                <span class="stat-dot dot-tx"></span>
+                <span class="stat-label">TX:</span>
+                <span class="stat-value" id="txRate">— bps</span>
+            </div>
+        </div>
+
+        <div class="graph-wrap">
+            <canvas id="bwChart"></canvas>
+        </div>
+    </div>
+
+</main>
+
+<script>
+// ---- Theme cycling (same as main page) -----------------------------------
+const THEMES      = ['', 'dark-blue', 'light'];
+const THEME_NAMES = ['Dark Red', 'Dark Blue', 'Light'];
+const THEME_KEY   = 'hyyperwan-theme';
+
+function getTheme() { return localStorage.getItem(THEME_KEY) || ''; }
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
+    const idx = THEMES.indexOf(theme);
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.innerHTML = `<span class="badge-label">Theme:</span> ${THEME_NAMES[idx >= 0 ? idx : 0]}`;
+}
+
+function cycleTheme() {
+    const cur = getTheme();
+    const idx = THEMES.indexOf(cur);
+    applyTheme(THEMES[(idx + 1) % THEMES.length]);
+}
+
+(function () { applyTheme(getTheme()); })();
+
+// ---- Bandwidth chart -------------------------------------------------------
+const MAX_POINTS = 60;   // ~60 seconds of history
+const IFACE_NAME = {{ iface_name | tojson }};
+
+function fmtRate(bps) {
+    if (bps === null || bps === undefined) return '— bps';
+    if (bps >= 1e9)  return (bps / 1e9).toFixed(2) + ' Gbps';
+    if (bps >= 1e6)  return (bps / 1e6).toFixed(2) + ' Mbps';
+    if (bps >= 1e3)  return (bps / 1e3).toFixed(1) + ' Kbps';
+    return Math.round(bps) + ' bps';
+}
+
+function makeLabels() {
+    const a = [];
+    for (let i = MAX_POINTS; i >= 0; i--) a.push(i === 0 ? 'now' : `-${i}s`);
+    return a;
+}
+
+const chartData = {
+    labels: makeLabels(),
+    datasets: [
+        {
+            label: 'RX',
+            data: new Array(MAX_POINTS + 1).fill(null),
+            borderColor: '#22c55e',
+            backgroundColor: 'rgba(34,197,94,0.08)',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: true,
+        },
+        {
+            label: 'TX',
+            data: new Array(MAX_POINTS + 1).fill(null),
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59,130,246,0.08)',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.3,
+            fill: true,
+        },
+    ]
+};
+
+const ctx = document.getElementById('bwChart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: chartData,
+    options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+            x: {
+                ticks: {
+                    color: '#666',
+                    maxTicksLimit: 10,
+                    maxRotation: 0,
+                    font: { size: 10 }
+                },
+                grid: { color: 'rgba(255,255,255,0.04)' }
+            },
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    color: '#666',
+                    font: { size: 10 },
+                    callback: v => fmtRate(v * 8)
+                },
+                grid: { color: 'rgba(255,255,255,0.06)' },
+                title: { display: false }
+            }
+        },
+        plugins: {
+            legend: {
+                labels: { color: '#999', font: { size: 11 }, boxWidth: 12 }
+            },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `${ctx.dataset.label}: ${fmtRate(ctx.raw * 8)}`
+                }
+            }
+        }
+    }
+});
+
+// Polling logic
+let prevRx = null, prevTx = null, prevTs = null;
+
+// Seed with initial stats injected by server (avoids a zero first delta)
+{% if initial_stats %}
+prevRx = {{ initial_stats.rx_bytes }};
+prevTx = {{ initial_stats.tx_bytes }};
+prevTs = {{ initial_stats.timestamp }};
+{% endif %}
+
+function pushPoint(rxBps, txBps) {
+    // Shift all datasets left by one
+    chartData.datasets[0].data.push(rxBps / 8);
+    chartData.datasets[0].data.shift();
+    chartData.datasets[1].data.push(txBps / 8);
+    chartData.datasets[1].data.shift();
+    chart.update('none');
+}
+
+function poll() {
+    fetch(`/interface/${IFACE_NAME}/stats`)
+        .then(r => r.json())
+        .then(d => {
+            if (d.error) return;
+            const ts = d.timestamp;
+            const rx = d.rx_bytes;
+            const tx = d.tx_bytes;
+
+            if (prevTs !== null) {
+                const dt = ts - prevTs;
+                if (dt > 0) {
+                    const rxBps = Math.max(0, (rx - prevRx) / dt * 8);
+                    const txBps = Math.max(0, (tx - prevTx) / dt * 8);
+                    document.getElementById('rxRate').textContent = fmtRate(rxBps);
+                    document.getElementById('txRate').textContent = fmtRate(txBps);
+                    pushPoint(rxBps, txBps);
+                }
+            }
+            prevRx = rx; prevTx = tx; prevTs = ts;
+        })
+        .catch(() => {});
+}
+
+// Start polling immediately then every second
+poll();
+const pollInterval = setInterval(poll, 1000);
+
+// Stop polling when page is hidden to save resources
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        clearInterval(pollInterval);
+    }
+});
+</script>
+</body>
+</html>
