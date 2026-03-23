@@ -1,427 +1,334 @@
 # HyyperWAN
 
-HyyperWAN is a web application for controlling network conditions (latency, jitter, and packet loss) on Linux systems using tc qdisc. A per interface packet capture utility (using tcpdump) is also included.
+HyyperWAN is a web application for emulating WAN conditions on Linux systems. It uses `tc qdisc` to apply latency, jitter, packet loss, and bandwidth limits to network interfaces, making it useful for testing SD-WAN, QoS, and other network-dependent features. The primary deployment method is as a Docker container running with `--net=host` so it controls the host's network stack directly.
 
-![Alt text](hyyperwan.png "HdyyperWan")
+![Alt text](hyyperwan.png "HyyperWAN")
 
+---
+
+## What's New
+
+- **Bandwidth limiting** — Set a bandwidth cap per interface (kbit/mbit/gbit) in addition to or instead of latency/jitter/loss. Uses HTB+netem stacking when combining impairments.
+- **Route table management** — View, add, and remove IPv4 and IPv6 routes on the host via a dedicated Routes page (uses `ip route`; changes are temporary).
+- **Interface detail page** — Click the `↗` icon next to any interface to open a dedicated page with:
+  - Live bandwidth graph (RX/TX bytes/sec, 60-second rolling window, 1s polling)
+  - IPv4/IPv6 address management (add/remove via `ip addr`)
+  - MTU configuration (`ip link set mtu`)
+- **Simultaneous HTTP + HTTPS** — A single image/process can now listen on both HTTP and HTTPS at the same time, controlled entirely by environment variables. The separate `hyyperwan-http` and `hyyperwan-https` images have been replaced by a single `hyyperwan:latest`.
+- **UI overhaul** — Sticky navbar, theme switcher (Dark Red / Dark Blue / Light), responsive layout, coloured status badges, and theme preference persisted in localStorage.
+- **Consolidated Dockerfile** — Single `docker/Dockerfile` replaces the previous `Dockerfile.http` and `Dockerfile.https`.
+
+---
 
 ## Features
 
-- Set and control network latency
-- Add network jitter
-- Simulate packet loss
-- Customize interface aliases for better identification
-- Capture network packets with tcpdump for traffic analysis
-- Support for both HTTP and HTTPS
-- View current network condition settings per interface
-- (New) Enable / disable source NAT per interfece
+- Set and control network latency, jitter, and packet loss per interface
+- Bandwidth limiting per interface
+- Enable/disable Source NAT (Masquerade) per interface
+- Interface aliases for easier identification (persistent across restarts)
+- Per-interface detail page with live bandwidth graph, IP address management, and MTU setting
+- Host route table view with add/remove (IPv4 and IPv6)
+- Packet capture via tcpdump with host/network/port filters and PCAP download
+- HTTP, HTTPS, or both simultaneously — controlled via environment variables
+- Dark Red, Dark Blue, and Light UI themes (persisted in browser localStorage)
+
+---
 
 ## Requirements
 
-- Linux operating system (Debian)
-
-When run locally on host machine:
-- Python 3.8 or higher
-- Root/sudo privileges (for tc commands and packet capture)
-- iproute2 package (for the `ip` command)
-- tcpdump (for packet capture functionality)
-- iptables (for source nat functionality)
-
-When run as container:
+**When run as a Docker container (recommended):**
 - Docker
+- The container must be run with `--net=host` and `--privileged`
+
+**When run directly on the host:**
+- Linux (tested on Ubuntu/Debian)
+- Python 3.8+
+- Root/sudo privileges
+- `iproute2` (`ip`, `tc` commands)
+- `tcpdump` (for packet capture)
+- `iptables` (for Source NAT)
+
+---
 
 ## Installation
 
-### Option 1: Pull Docker Image from GitHub Container Registry (ghcr.io) [recommended, easiest]
+### Option 1: Docker — Pull from GitHub Container Registry (recommended)
 
-This is the recommended method for most users. Pre-built Docker images are available on GitHub Container Registry.
-
-1.  **Pull the Docker Image:**
-
-    For the HTTP version (listens on port 8080 by default):
-    ```bash
-    docker pull ghcr.io/hyyperlite/hyyperwan-http:latest
-    ```
-
-    For the HTTPS version (listens on port 8443 by default, uses included self-signed certificates):
-    ```bash
-    docker pull ghcr.io/hyyperlite/hyyperwan-https:latest
-    ```
-
-2.  **Run the Docker Container:**
-    Start the container in detached mode. `--net=host` allows the container to share the host's network stack, `--privileged` grants the necessary permissions for `tc` and `tcpdump` operations on the host interfaces, and `--restart unless-stopped` ensures the container restarts automatically with Docker or on host reboot.
-
-    For HTTP:
-    ```bash
-    docker run -d --name hyyperwan-http --net=host --privileged --restart unless-stopped ghcr.io/hyyperlite/hyyperwan-http:latest
-    ```
-
-    For HTTPS:
-    ```bash
-    docker run -d --name hyyperwan-https --net=host --privileged --restart unless-stopped ghcr.io/hyyperlite/hyyperwan-https:latest
-    ```
-
-    **Optional: Customizing Configuration with Environment Variables**
-
-    You can customize the container's behavior by passing environment variables using the `-e` flag in the `docker run` command.
-
-    -   **Changing the Listening Port:**
-        To change the default listening port (8080 for HTTP, 8443 for HTTPS), use the `FLASK_RUN_PORT` variable. For example, to run the HTTP container on port 80:
-        ```bash
-        docker run -d --name hyyperwan-http --net=host --privileged --restart unless-stopped -e FLASK_RUN_PORT=80 ghcr.io/hyyperlite/hyyperwan-http:latest
-        ```
-
-    -   **Hiding the Tools Column:**
-        To hide the "Tools" column (which contains the packet capture and NAT toggle buttons), set the `DISABLE_TOOLS_COLUMN` variable to `true`. By default, this column is displayed.
-        ```bash
-        docker run -d --name hyyperwan-http --net=host --privileged --restart unless-stopped -e DISABLE_TOOLS_COLUMN=true ghcr.io/hyyperlite/hyyperwan-http:latest
-        ```
-
-3.  **Access the Application:**
-    The application will be accessible via the host machine's IP address.
-    - For HTTP: `http://<host-ip>:8080` (or the port configured via `FLASK_RUN_PORT`)
-    - For HTTPS: `https://<host-ip>:8443` (or the port configured via `FLASK_RUN_PORT`)
-
-4.  **Stopping the Container:**
-    ```bash
-    docker stop hyyperwan-http  # For the HTTP container
-    # or
-    docker stop hyyperwan-https # For the HTTPS container
-    ```
-
-5.  **Viewing Logs:**
-    ```bash
-    docker logs hyyperwan-http  # For the HTTP container
-    # or
-    docker logs hyyperwan-https # For the HTTPS container
-    ```
-
-### Option 2: Build Docker Image from Dockerfile [next easiest]
-
-If you prefer to build the image yourself or need to make custom modifications. Example `Dockerfile.http` (for HTTP) and `Dockerfile.https` (for HTTPS) are provided in the `Docker/` directory of the repository.
-
-**To get started, you'll need the Dockerfiles. Here are a couple of ways to obtain them:**
-
-*   **A) Clone the full repository (Recommended if you also plan to modify application code):**
-    This gives you all project files, including the Dockerfiles located in the `Docker/` subdirectory.
-    ```bash
-    git clone https://github.com/hyyperlite/hyyperwan.git
-    cd hyyperwan
-    # After cloning, the Dockerfiles will be in ./Docker/
-    # Proceed to step "1. Build the Docker Image" below.
-    ```
-
-*   **B) Download only the Dockerfiles using `wget`:**
-    This method is useful if you only need the Dockerfiles themselves. The provided Dockerfiles are multi-stage and will clone the application code during their own build process.
-    ```bash
-    # Create a directory to store the Dockerfiles and build the image
-    mkdir hyyperwan_docker_build
-    cd hyyperwan_docker_build
-
-    # Create the Docker subdirectory
-    mkdir Docker
-    cd Docker
-
-    # Download the Dockerfiles
-    wget https://raw.githubusercontent.com/hyyperlite/hyyperwan/refs/heads/main/docker/Dockerfile.http
-    wget https://raw.githubusercontent.com/hyyperlite/hyyperwan/refs/heads/main/docker/Dockerfile.https
-    
-    # Go back to the parent directory for the build context
-    cd ..
-    # After these commands, the Dockerfiles will be available in the Docker/ subdirectory.
-    # (e.g., hyyperwan_docker_build/Docker/Dockerfile.http).
-    # Now, proceed to step "1. Build the Docker Image" below, ensuring your terminal is in the 'hyyperwan_docker_build' directory.
-    ```
-
-**1. Build the Docker Image:**
-
-Navigate to the directory where you have the `Docker` subdirectory (e.g., the root of the full repository if you chose option A, or the `hyyperwan_docker_build` directory if you chose option B). The build context (the `.` at the end of the `docker build` command) should be this directory.
-
-To build the HTTP version (defaulting to port 8080):
 ```bash
-docker build --no-cache -t hyyperwan-http -f Docker/Dockerfile.http .
+docker pull ghcr.io/hyyperlite/hyyperwan:latest
 ```
 
-To build the HTTPS version (defaulting to port 8443):
+**HTTP only (default — port 8080):**
 ```bash
-docker build --no-cache -t hyyperwan-https -f Docker/Dockerfile.https .
+docker run -d --name hyyperwan \
+  --net=host --privileged \
+  --restart unless-stopped \
+  ghcr.io/hyyperlite/hyyperwan:latest
 ```
 
-2.  **Run the Docker Container:**
-    Start the container in detached mode. `--net=host` allows the container to share the host's network stack, `--privileged` grants the necessary permissions for `tc` and `tcpdump` operations on the host interfaces, and `--restart unless-stopped` ensures the container restarts automatically.
+**HTTPS only (port 8443):**
+```bash
+docker run -d --name hyyperwan \
+  --net=host --privileged \
+  --restart unless-stopped \
+  -e ENABLE_HTTP=false \
+  -e ENABLE_HTTPS=true \
+  -e SSL_CERT_PATH=/certs/cert.pem \
+  -e SSL_KEY_PATH=/certs/key.pem \
+  -v /path/to/your/certs:/certs \
+  ghcr.io/hyyperlite/hyyperwan:latest
+```
 
-    For HTTP:
-    ```bash
-    docker run -d --name hyyperwan-http --net=host --privileged --restart unless-stopped hyyperwan-http
-    ```
+**Both HTTP and HTTPS simultaneously:**
+```bash
+docker run -d --name hyyperwan \
+  --net=host --privileged \
+  --restart unless-stopped \
+  -e ENABLE_HTTP=true \
+  -e ENABLE_HTTPS=true \
+  -e SSL_CERT_PATH=/certs/cert.pem \
+  -e SSL_KEY_PATH=/certs/key.pem \
+  -v /path/to/your/certs:/certs \
+  ghcr.io/hyyperlite/hyyperwan:latest
+```
 
-    For HTTPS:
-    ```bash
-    docker run -d --name hyyperwan-https --net=host --privileged --restart unless-stopped hyyperwan-https
-    ```
+**Custom ports:**
+```bash
+docker run -d --name hyyperwan \
+  --net=host --privileged \
+  --restart unless-stopped \
+  -e HTTP_PORT=80 \
+  -e HTTPS_PORT=443 \
+  -e ENABLE_HTTPS=true \
+  -e SSL_CERT_PATH=/certs/cert.pem \
+  -e SSL_KEY_PATH=/certs/key.pem \
+  -v /path/to/your/certs:/certs \
+  ghcr.io/hyyperlite/hyyperwan:latest
+```
 
-3.  **Access the Application:**
-    (Same as Option 1)
+**Hide the Tools column (packet capture / NAT buttons):**
+```bash
+docker run -d --name hyyperwan \
+  --net=host --privileged \
+  --restart unless-stopped \
+  -e DISABLE_TOOLS_COLUMN=true \
+  ghcr.io/hyyperlite/hyyperwan:latest
+```
 
-4.  **Stopping the Container:**
-    (Same as Option 1)
+**Access the application:**
+- HTTP:  `http://<host-ip>:8080`
+- HTTPS: `https://<host-ip>:8443` (self-signed cert will produce a browser warning — accept/proceed)
 
-5.  **Viewing Logs:**
-    (Same as Option 1)
+**Stop / view logs:**
+```bash
+docker stop hyyperwan
+docker logs hyyperwan
+```
 
-**Note for Docker Options:** Running with `--net=host` and `--privileged` grants the container extensive access to the host system. Ensure you understand the security implications before using this method.
+> **Security note:** `--net=host` and `--privileged` grant the container extensive access to the host. This is intentional — it is how HyyperWAN controls host network interfaces from inside the container.
 
-### Option 3: Direct Installation
+---
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/hyyperwan.git
-   cd hyyperwan
-   ```
+### Option 2: Build Docker Image from Source
 
-2. Install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+Clone the repository and build the single unified Dockerfile:
 
-3. Make sure tcpdump is installed:
-   ```bash
-   sudo apt-get install tcpdump   # For Debian/Ubuntu
-   sudo yum install tcpdump       # For RHEL/CentOS
-   ```
+```bash
+git clone https://github.com/hyyperlite/hyyperwan.git
+cd hyyperwan
+docker build --no-cache -t hyyperwan -f docker/Dockerfile .
+```
 
-4. Run the application:
-   ```bash
-   sudo python app.py
-   ```
+Then run using the same `docker run` examples shown in Option 1, replacing `ghcr.io/hyyperlite/hyyperwan:latest` with `hyyperwan`.
 
-   The application will be accessible at http://server-ip:8080
+**Generating a self-signed certificate (if needed for HTTPS):**
+```bash
+mkdir -p certificates
+openssl req -x509 -newkey rsa:4096 -nodes \
+  -out certificates/cert.pem \
+  -keyout certificates/key.pem \
+  -days 365
+```
 
-### Option 4: Systemd Service (Recommended for Production on a non-containerized host)
+---
 
-This option describes setting up HyyperWAN to run as a systemd service using a dedicated non-root user (`hyyperwan`).
+### Option 3: Direct Installation (no Docker)
 
-1.  **Create a dedicated user and group:**
+```bash
+git clone https://github.com/hyyperlite/hyyperwan.git
+cd hyyperwan
+pip install -r requirements.txt
+python app.py
+```
+
+The application will be accessible at `http://server-ip:8080` by default. See the Environment Variables section below to configure ports, HTTPS, etc.
+
+Ensure the following are installed on the host:
+```bash
+sudo apt-get install iproute2 tcpdump iptables   # Debian/Ubuntu
+sudo yum install iproute tcpdump iptables        # RHEL/CentOS
+```
+
+---
+
+### Option 4: Systemd Service (production, non-containerized)
+
+1. **Create a dedicated user:**
     ```bash
     sudo groupadd hyyperwan
     sudo useradd -r -g hyyperwan -d /opt/hyyperwan -s /sbin/nologin hyyperwan
     ```
 
-2.  **Clone the repository and set up application directory:**
+2. **Clone and place application files:**
     ```bash
-    git clone https://github.com/hyyperlite/hyyperwan.git # Or your fork's URL
+    git clone https://github.com/hyyperlite/hyyperwan.git
     sudo mv hyyperwan /opt/
     ```
 
-3.  **Create Python virtual environment and install dependencies:**
-    Ensure you have `python3-venv` (or equivalent) installed.
+3. **Create a virtual environment and install dependencies:**
     ```bash
-    sudo apt-get update
-    sudo apt-get install python3-venv # For Debian/Ubuntu
-    # For RHEL/CentOS, you might use 'sudo yum install python3-virtualenv' or similar
-
-    sudo mkdir -p /opt/hyyperwan
-    sudo chown -R hyyperwan:hyyperwan /opt/hyyperwan
-    
+    sudo apt-get install python3-venv
     sudo -u hyyperwan python3 -m venv /opt/hyyperwan/venv
-    sudo -u hyyperwan /opt/hyyperwan/venv/bin/pip3 install --no-cache-dir -r /opt/hyyperwan/requirements.txt
+    sudo -u hyyperwan /opt/hyyperwan/venv/bin/pip install --no-cache-dir -r /opt/hyyperwan/requirements.txt
     ```
-    *Note: If `pip3` is not found, try `pip` within the activated venv or ensure your system's Python 3 pip is correctly aliased.*
 
-4.  **Configure Sudoers for passwordless tc and tcpdump:**
-    Create a new file `/etc/sudoers.d/hyyperwan` with the following content. **Use `visudo -f /etc/sudoers.d/hyyperwan` to create and edit this file to ensure correct syntax.**
+4. **Configure passwordless sudo for the hyyperwan user:**
+    Use `sudo visudo -f /etc/sudoers.d/hyyperwan` and add:
     ```sudoers
     hyyperwan ALL=(ALL) NOPASSWD: /usr/sbin/tc
+    hyyperwan ALL=(ALL) NOPASSWD: /usr/sbin/ip
     hyyperwan ALL=(ALL) NOPASSWD: /usr/sbin/tcpdump
+    hyyperwan ALL=(ALL) NOPASSWD: /usr/sbin/iptables
     ```
-    *Verify the paths to `tc` and `tcpdump` on your system using `which tc` and `which tcpdump` and adjust if necessary.*
+    Verify paths with `which tc`, `which ip`, etc.
 
-5.  **Copy the systemd service file (choose HTTP or HTTPS):**
-    The provided service files in the `systemctl/` directory are configured to run as `User=hyyperwan` and `Group=hyyperwan`.
-
-    For HTTPS (recommended, uses `/opt/hyyperwan/certificates`):
-    ```bash
-    sudo cp /opt/hyyperwan/systemctl/hyyperwan.service.https /etc/systemd/system/hyyperwan.service
-    ```
-    For HTTP:
+5. **Copy and configure the systemd service file:**
     ```bash
     sudo cp /opt/hyyperwan/systemctl/hyyperwan.service.http /etc/systemd/system/hyyperwan.service
     ```
-    *(Ensure the paths to certificates in `hyyperwan.service.https` are correct if you customize them, and that `hyyperwan` user can read them).*
+    Edit the service file to set environment variables as needed (see Environment Variables below).
 
-6.  **Set ownership for all application files:**
+6. **Set ownership and enable the service:**
     ```bash
     sudo chown -R hyyperwan:hyyperwan /opt/hyyperwan
-    # Ensure the hyyperwan user has read access to certificates if using HTTPS
-    # sudo chown -R hyyperwan:hyyperwan /opt/hyyperwan/certificates
-    # sudo chmod -R 750 /opt/hyyperwan/certificates # Or more restrictive if key.pem is sensitive
-    ```
-
-7.  **Reload systemd, enable and start the service:**
-    ```bash
     sudo systemctl daemon-reload
     sudo systemctl enable hyyperwan.service
     sudo systemctl start hyyperwan.service
+    sudo systemctl status hyyperwan.service
     ```
 
-8.  **Check the status:**
-    ```bash
-    sudo systemctl status hyyperwan.service
-    journalctl -u hyyperwan.service -n 50 --no-pager
-    ```
-    The application will be accessible at `http://server-ip:8080` (for HTTP service) or `https://server-ip:8443` (for HTTPS service).
+---
 
 ## Configuration
 
 ### Environment Variables
 
-You can customize the application behavior using environment variables in the `.env` file:
+All configuration is done through environment variables — in the `.env` file for direct installs, or via `-e` flags for Docker.
 
-- `FLASK_RUN_HOST`: Host to listen on (default: 0.0.0.0)
-- `FLASK_RUN_PORT`: Port to listen on (default: 8080)
-- `USE_HTTPS`: Whether to use HTTPS (default: false)
-- `SSL_CERT_PATH`: Path to SSL certificate (default: certificates/cert.pem)
-- `SSL_KEY_PATH`: Path to SSL key (default: certificates/key.pem)
-- `DISABLE_TOOLS_COLUMN` Set to "true" if want to disable tools column from displan (nat/packet capture).
+| Variable | Default | Description |
+|---|---|---|
+| `FLASK_RUN_HOST` | `0.0.0.0` | Bind address |
+| `ENABLE_HTTP` | `true` | Enable HTTP listener |
+| `ENABLE_HTTPS` | `false` | Enable HTTPS listener |
+| `HTTP_PORT` | `8080` | HTTP listen port |
+| `HTTPS_PORT` | `8443` | HTTPS listen port |
+| `SSL_CERT_PATH` | _(unset)_ | Path to TLS certificate (required when ENABLE_HTTPS=true) |
+| `SSL_KEY_PATH` | _(unset)_ | Path to TLS private key (required when ENABLE_HTTPS=true) |
+| `DISABLE_TOOLS_COLUMN` | `false` | Hide the Tools column (packet capture + NAT buttons) |
+| `FLASK_DEBUG` | `false` | Enable Flask debug mode |
+| `USE_HTTPS` | `false` | Legacy alias: `true` is equivalent to `ENABLE_HTTPS=true` + `ENABLE_HTTP=false` |
+| `FLASK_RUN_PORT` | _(unset)_ | Legacy alias for `HTTP_PORT` |
 
-### HTTPS Configuration
-
-To enable HTTPS:
-
-1. Create certificates directory (if it doesn't exist):
-   ```bash
-   mkdir -p certificates
-   ```
-
-2. Generate self-signed certificates:
-   ```bash
-   openssl req -x509 -newkey rsa:4096 -nodes -out certificates/cert.pem -keyout certificates/key.pem -days 365
-   ```
-
-3. Update the `.env` file:
-   ```
-   USE_HTTPS=true
-   SSL_CERT_PATH=certificates/cert.pem
-   SSL_KEY_PATH=certificates/key.pem
-   ```
-
-### Systemd Service Configuration
-
-The systemd service file (`/etc/systemd/system/hyyperwan.service`) can be modified to adjust settings:
-
-```ini
-[Service]
-# ...existing code...
-Environment="FLASK_RUN_HOST=0.0.0.0"
-Environment="FLASK_RUN_PORT=8443"
-Environment="USE_HTTPS=true"
-Environment="SSL_CERT_PATH=/opt/hyyperwan/certificates/cert.pem"
-Environment="SSL_KEY_PATH=/opt/hyyperwan/certificates/key.pem"
-# ...existing code...
-```
-
-After modifying the service file, reload and restart the service:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart hyyperwan.service
-```
-
-### HTTP Service Alternative
-
-For users who prefer running the application over HTTP rather than HTTPS, an alternative service file (`hyyperwan.service.http`) is provided:
-
-1. Copy the HTTP service file to systemd:
-   ```bash
-   sudo cp /path/to/hyyperwan/hyyperwan.service.http /etc/systemd/system/hyyperwan.service
-   ```
-   
-   Note: Replace `/path/to/hyyperwan/` with the actual path where you installed the application. If you followed the recommended installation, this would be `/opt/hyyperwan/`
-
-2. Alternatively, to maintain both services side by side:
-   ```bash
-   sudo cp /path/to/hyyperwan/hyyperwan.service.http /etc/systemd/system/hyyperwan-http.service
-   ```
-
-3. Reload systemd and enable/start the service:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable hyyperwan.service
-   sudo systemctl start hyyperwan.service
-   ```
-
-The HTTP service runs on port 8080 by default. If you need to modify paths or other settings in the service file, edit it before copying to the systemd directory.
+---
 
 ## Usage
 
-1. Access the web interface at http://server-ip:8080 (or https://server-ip:8443 if HTTPS is enabled)
+### Main Interface Table
 
-2. For each network interface, you can:
-   - Set latency (e.g., 100ms)
-   - Set jitter (e.g., 20ms)
-   - Set packet loss (e.g., 5%)
-   - Create custom aliases for easier identification
-   - Capture packets for network analysis
+Access the web interface at `http://<host-ip>:8080` (or the configured port).
 
-3. Click "Apply" to set the selected network conditions
+For each network interface you can:
+- Set **latency** (e.g. `100ms`, `50us`)
+- Set **jitter** (e.g. `10ms`)
+- Set **packet loss** (e.g. `5%`)
+- Set a **bandwidth limit** (e.g. `10 mbit`)
+- Click **Apply** to apply selected conditions
+- Click **Remove** to clear conditions for that interface
+- Click **Reset All Interfaces** to clear all interfaces at once
+- Toggle **Source NAT** (Masquerade) on/off per interface
+- Click **Capture** to start a tcpdump packet capture
 
-4. Click "Remove" to clear conditions for a specific interface
+Click the **`↗`** icon next to any interface name to open the interface detail page.
 
-5. Click "Reset All Interfaces" to clear conditions from all interfaces
+### Interface Detail Page
 
-## Interface Aliases
+- **IP Addresses** — view, add, and remove IPv4/IPv6 addresses (`ip addr add/del`)
+- **MTU** — view and set the MTU (`ip link set mtu`)
+- **Bandwidth Monitor** — live scrolling graph of RX/TX bytes/sec (1-second polling, 60-second window)
 
-You can add user-friendly names to interfaces for easier identification:
+> Address and MTU changes are temporary and will not survive a reboot. Use your distribution's network configuration tooling (Netplan, NetworkManager, etc.) for persistent changes.
 
-1. Click "Add Alias" next to an interface name
-2. Enter a descriptive name for the interface
-3. Click "Save"
+### Routes Page
 
-Aliases are stored persistently and will be remembered across application restarts.
+Click **Routes** in the navigation bar to view and manage the host's routing table.
 
-## Packet Capture
+- View all IPv4 and IPv6 routes
+- Add a route (destination, gateway, interface, metric)
+- Remove a non-kernel route
 
-HyyperWAN includes a packet capture feature to help analyze network traffic:
+> Route changes are temporary and will not survive a reboot.
 
-1. Click "Capture" next to the interface you want to monitor
-2. In the popup window, configure your capture filters:
-   - **Host Filter**: Capture packets from/to specific IP addresses (comma separated)
-   - **Network Filter**: Capture packets for specific networks (e.g., 192.168.1.0/24)
-   - **Port Filter**: Capture packets for specific ports (comma separated)
-   - For each filter type, select whether to use AND or OR logic for multiple values
+### Interface Aliases
 
-3. Click "Start Capture" to begin capturing packets
-   - Captures are limited to 10,000 packets maximum to prevent disk space issues
-   - A counter will show the elapsed capture time
+Click **Add alias** / **Edit alias** next to any interface name to assign a friendly label. Aliases are stored persistently in `interface_aliases.json` and survive application restarts.
 
-4. Click "Stop & Download" to end the capture and download the .pcap file
-   - The file can be analyzed with tools like Wireshark or tcpdump
+### Packet Capture
 
-Notes:
-- You must run HyyperWAN with root/sudo privileges for packet capture to work
-- Packet capture files are temporarily stored in `/tmp/hyyperwan_pcaps/`
-- Files are automatically deleted after download to preserve disk space
-- Closing the browser window will automatically stop any active captures
+1. Click **Capture** next to an interface
+2. Configure filters in the popup:
+   - **Host filter** — specific IP addresses (comma-separated, AND/OR logic)
+   - **Network filter** — CIDR blocks (e.g. `192.168.1.0/24`)
+   - **Port filter** — port numbers (comma-separated)
+3. Click **Start Capture** — limited to 10,000 packets
+4. Click **Stop & Download** to retrieve the `.pcap` file (compatible with Wireshark)
+
+Capture files are stored temporarily in `/tmp/hyyperwan_pcaps/` and deleted automatically after download.
+
+### Themes
+
+Click the **Theme** button in the top-right corner to cycle through:
+- **Dark Red** (default)
+- **Dark Blue**
+- **Light**
+
+Theme preference is saved in browser `localStorage` and persists across sessions.
+
+---
 
 ## Troubleshooting
 
-If you encounter issues:
+**Application logs:**
+```bash
+cat app.log                                    # direct install
+docker logs hyyperwan                          # Docker
+sudo journalctl -u hyyperwan.service -n 50     # systemd
+```
 
-1. Check the application logs:
-   ```bash
-   cat app.log
-   ```
+**Verify tc is working:**
+```bash
+sudo tc qdisc show
+```
 
-2. For systemd service issues:
-   ```bash
-   sudo journalctl -u hyyperwan.service -n 50
-   ```
+**Verify ip command is available:**
+```bash
+ip -j addr
+```
 
-3. Verify that tc commands work manually:
-   ```bash
-   sudo tc qdisc show
-   ```
+**HTTPS slow to start:** The HTTPS listener may take up to ~60 seconds to begin accepting connections after startup while the SSL context initialises. HTTP is available immediately.
 
-4. Make sure you have root/sudo privileges
+**sudo password prompts in logs:** The application requires passwordless sudo for `tc`, `ip`, `tcpdump`, and `iptables`. Ensure sudoers is configured correctly (see Option 4 step 4 above). Docker deployments using `--privileged` handle this automatically.
+
+---
 
 ## License
 
