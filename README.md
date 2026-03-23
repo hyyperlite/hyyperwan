@@ -2,7 +2,7 @@
 
 HyyperWAN is a web application for emulating WAN conditions on Linux systems. It uses `tc qdisc` to apply latency, jitter, packet loss, and bandwidth limits to network interfaces, making it useful for testing SD-WAN, QoS, and other network-dependent features. The primary deployment method is as a Docker container running with `--net=host` so it controls the host's network stack directly.
 
-![Alt text](hyyperwan.png "HyyperWAN")
+<img src="docs/images/interfaces.png" alt="HyyperWAN Interfaces" width="900">
 
 ---
 
@@ -289,6 +289,8 @@ All configuration is done through environment variables — in the `.env` file f
 
 ### Admin Page
 
+<img src="docs/images/admin.png" alt="HyyperWAN Admin" width="900">
+
 Navigate to `/admin` in your browser to configure:
 
 **Global settings:**
@@ -339,6 +341,8 @@ For each network interface you can:
 Click the **`↗`** icon next to any interface name to open the interface detail page.
 
 ### Interface Detail Page
+
+<img src="docs/images/per-interface.png" alt="HyyperWAN Interface Detail" width="900">
 
 - **TC Impairments** — view current latency/jitter/loss/bandwidth, apply or remove impairments, with Capture and NAT buttons alongside
 - **IP Addresses** — view, add, and remove IPv4/IPv6 addresses (`ip addr add/del`)
