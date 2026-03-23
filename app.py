@@ -1286,6 +1286,28 @@ def exec_ip_addr(action, interface, address):
     return result.returncode == 0, result.stderr.strip()
 
 
+def get_mtu(interface):
+    """Return current MTU for interface as an int, or None on failure."""
+    try:
+        mtu_path = f'/sys/class/net/{interface}/mtu'
+        with open(mtu_path, 'r') as f:
+            return int(f.read().strip())
+    except Exception as e:
+        logging.error(f"Error reading MTU for {interface}: {e}")
+        return None
+
+
+def set_mtu(interface, mtu):
+    """
+    Run 'sudo ip link set <interface> mtu <mtu>'.
+    Returns (success, stderr).
+    """
+    cmd = ['sudo', 'ip', 'link', 'set', interface, 'mtu', str(mtu)]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    log_command(cmd, result.stdout + result.stderr)
+    return result.returncode == 0, result.stderr.strip()
+
+
 # ---------------------------------------------------------------------------
 # Interface detail page — routes
 # ---------------------------------------------------------------------------
@@ -1297,12 +1319,14 @@ def interface_detail(name):
         alias = get_interface_alias(name)
         addresses = get_interface_addresses(name)
         stats = read_proc_net_dev(name)
+        mtu = get_mtu(name)
         return render_template('interface.html',
                                hostname=hostname,
                                iface_name=name,
                                iface_alias=alias,
                                addresses=addresses,
-                               initial_stats=stats)
+                               initial_stats=stats,
+                               mtu=mtu)
     except Exception as e:
         logging.error(f"Error in interface_detail for {name}: {e}")
         flash(f"Error loading interface detail: {e}", "error")
@@ -1329,6 +1353,24 @@ def interface_add_addr(name):
         flash(f"Added {address} to {name}. Note: address changes are temporary and will not survive a reboot.", "success")
     else:
         flash(f"Failed to add {address} to {name}: {err}", "error")
+    return redirect(url_for('interface_detail', name=name))
+
+
+@app.route('/interface/<name>/set_mtu', methods=['POST'])
+def interface_set_mtu(name):
+    raw = request.form.get('mtu', '').strip()
+    try:
+        mtu = int(raw)
+        if not (68 <= mtu <= 65535):
+            raise ValueError
+    except ValueError:
+        flash(f"Invalid MTU '{raw}'. Must be an integer between 68 and 65535.", "error")
+        return redirect(url_for('interface_detail', name=name))
+    ok, err = set_mtu(name, mtu)
+    if ok:
+        flash(f"MTU on {name} set to {mtu}.", "success")
+    else:
+        flash(f"Failed to set MTU on {name}: {err}", "error")
     return redirect(url_for('interface_detail', name=name))
 
 

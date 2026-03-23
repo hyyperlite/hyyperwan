@@ -236,6 +236,34 @@
     </div>
 
     <!-- ===================================================================
+         MTU
+         =================================================================== -->
+    <div class="detail-section">
+        <div class="detail-section-title">MTU</div>
+        <form action="{{ url_for('interface_set_mtu', name=iface_name) }}" method="post"
+              class="add-addr-form"
+              onsubmit="return confirm('Set MTU on {{ iface_name }} to ' + this.mtu.value + '?')">
+            <span class="add-addr-label">Current MTU:</span>
+            <span class="addr-mono" style="color:var(--text-primary); min-width:50px">
+                {{ mtu if mtu is not none else '—' }}
+            </span>
+            <span class="add-addr-label" style="margin-left:16px">Set new MTU:</span>
+            <input type="number" name="mtu" min="68" max="65535"
+                   placeholder="e.g. 1500"
+                   value="{{ mtu if mtu is not none else '' }}"
+                   style="width:110px; padding:6px 10px; font-size:0.85rem;
+                          border-radius:var(--radius); border:1px solid var(--border-strong);
+                          background:var(--bg-input); color:var(--text-primary);"
+                   required>
+            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+        </form>
+        <p style="font-size:0.78rem; color:var(--text-muted); margin-top:10px;">
+            Common values: 1500 (Ethernet), 9000 (jumbo frames), 1492 (PPPoE), 576 (legacy WAN).
+            Changes are temporary and will not survive a reboot.
+        </p>
+    </div>
+
+    <!-- ===================================================================
          Bandwidth Monitor
          =================================================================== -->
     <div class="detail-section">
