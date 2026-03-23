@@ -156,6 +156,56 @@ def validate_loss(value):
     
     return True, value, None
 
+def validate_bandwidth(value):
+    """
+    Validate bandwidth input.
+    Accepts: 10mbit, 100kbit, 1gbit (case-insensitive), or plain number (treated as mbit).
+    Returns (is_valid, normalized_value, error_message)
+    normalized_value is like "10mbit", "100kbit", "1gbit" (lowercase)
+    """
+    if not value or value.strip() == '':
+        return True, None, None
+
+    value = value.strip().lower()
+    match = re.match(r'^(\d+(?:\.\d+)?)(kbit|mbit|gbit)?$', value)
+    if not match:
+        return False, None, "Bandwidth must be a number followed by kbit, mbit, or gbit (e.g., 10mbit)"
+
+    num_str = match.group(1)
+    unit = match.group(2) or 'mbit'
+
+    try:
+        num = float(num_str)
+    except ValueError:
+        return False, None, "Bandwidth value is not a valid number"
+
+    if num <= 0:
+        return False, None, "Bandwidth must be greater than 0"
+
+    return True, f"{num_str}{unit}", None
+
+
+def compute_tbf_burst(bandwidth_str):
+    """Calculate an appropriate TBF burst size for a given bandwidth string like '10mbit'."""
+    match = re.match(r'^(\d+(?:\.\d+)?)(kbit|mbit|gbit)$', bandwidth_str.lower())
+    if not match:
+        return '32kbit'
+
+    val = float(match.group(1))
+    unit = match.group(2)
+    multipliers = {'kbit': 1_000, 'mbit': 1_000_000, 'gbit': 1_000_000_000}
+    bits = val * multipliers[unit]
+
+    # burst >= rate/HZ; HZ is typically 250-1000; use rate/250 with 4KB minimum
+    burst_bytes = max(int(bits / 250 / 8), 4096)
+
+    if burst_bytes >= 1_048_576:
+        return f"{int(burst_bytes / 1_048_576)}mb"
+    elif burst_bytes >= 1024:
+        return f"{int(burst_bytes / 1024)}kb"
+    return f"{burst_bytes}b"
+
+
 def load_ignored_interfaces():
     """
     Load ignored interface names from the JSON file.
@@ -216,29 +266,29 @@ def list_interfaces():
                 if ip_address:
                     try:
                         # Get current network condition settings
-                        latency, loss, jitter = get_qdisc_settings(interface_name)
-                        nat_status = get_nat_status(interface_name) # Get NAT status
-                        # Include both real name and alias in the interface data
+                        latency, loss, jitter, bandwidth = get_qdisc_settings(interface_name)
+                        nat_status = get_nat_status(interface_name)
                         interfaces.append({
-                            'name': interface_name, 
+                            'name': interface_name,
                             'alias': aliases.get(interface_name, ''),
-                            'ip': ip_address, 
-                            'latency': latency, 
-                            'loss': loss, 
+                            'ip': ip_address,
+                            'latency': latency,
+                            'loss': loss,
                             'jitter': jitter,
-                            'nat_status': nat_status # Add nat_status here
+                            'bandwidth': bandwidth,
+                            'nat_status': nat_status,
                         })
                     except Exception as e:
-                        # If we can't get settings for one interface, still show it with default values
                         logging.error(f"Error getting settings for interface {interface_name}: {str(e)}")
                         interfaces.append({
-                            'name': interface_name, 
+                            'name': interface_name,
                             'alias': aliases.get(interface_name, ''),
-                            'ip': ip_address, 
-                            'latency': '0ms', 
-                            'loss': '0%', 
+                            'ip': ip_address,
+                            'latency': '0ms',
+                            'loss': '0%',
                             'jitter': '0ms',
-                            'nat_status': False # Default NAT status on error
+                            'bandwidth': None,
+                            'nat_status': False,
                         })
         
         except json.JSONDecodeError as e:
@@ -274,118 +324,189 @@ def get_loss(interface):
         return '0%'
 
 def get_qdisc_settings(interface):
+    """
+    Return (latency, loss, jitter, bandwidth) for the interface.
+    bandwidth is None if no rate limit is set, otherwise a string like '10Mbit'.
+    """
     try:
         result = subprocess.run(['sudo', 'tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
         output = result.stdout
         log_command(['sudo', 'tc', 'qdisc', 'show', 'dev', interface], output)
-        
-        # Improved regex patterns for latency, jitter and loss
+
         latency_match = re.search(r'delay (\d+(?:ms|us))', output)
-        # Updated jitter regex to handle the double space and any spacing between latency and jitter
-        jitter_match = re.search(r'delay \d+(?:ms|us)\s+(\d+(?:ms|us))', output)
-        loss_match = re.search(r'loss (\d+)%', output)
-        
+        jitter_match  = re.search(r'delay \d+(?:ms|us)\s+(\d+(?:ms|us))', output)
+        loss_match    = re.search(r'loss (\d+(?:\.\d+)?)%', output)
+
         latency = latency_match.group(1) if latency_match else '0ms'
-        loss = loss_match.group(1) + '%' if loss_match else '0%'
-        jitter = jitter_match.group(1) if jitter_match else '0ms'
-        
-        # For debugging - log the matched jitter value
+        loss    = loss_match.group(1) + '%' if loss_match else '0%'
+        jitter  = jitter_match.group(1) if jitter_match else '0ms'
+
         if jitter_match:
             logging.info(f"Captured jitter: {jitter}")
         else:
             logging.info("No jitter found in tc output")
-        
-        return latency, loss, jitter
+
+        # Detect bandwidth limit
+        bandwidth = None
+        if 'tbf' in output:
+            # e.g. "rate 10Mbit burst 32Kb lat 400ms"
+            rate_match = re.search(r'rate (\S+)', output)
+            if rate_match:
+                bandwidth = rate_match.group(1)
+        elif 'htb' in output:
+            # Rate is on the class, not the qdisc line
+            class_result = subprocess.run(
+                ['sudo', 'tc', 'class', 'show', 'dev', interface],
+                capture_output=True, text=True
+            )
+            log_command(['sudo', 'tc', 'class', 'show', 'dev', interface], class_result.stdout)
+            # Pick first class rate (our classid 1:10)
+            rate_match = re.search(r'class htb[^\n]+rate (\S+)', class_result.stdout)
+            if rate_match:
+                bandwidth = rate_match.group(1)
+
+        return latency, loss, jitter, bandwidth
     except subprocess.SubprocessError as e:
         logging.error(f"Error executing tc command for interface {interface}: {str(e)}")
-        return '0ms', '0%', '0ms'
+        return '0ms', '0%', '0ms', None
     except Exception as e:
         logging.error(f"Error getting qdisc settings for interface {interface}: {str(e)}")
-        return '0ms', '0%', '0ms'
+        return '0ms', '0%', '0ms', None
 
-def apply_qdisc(interface, latency=None, loss=None, jitter=None):
+def apply_qdisc(interface, latency=None, loss=None, jitter=None, bandwidth=None):
+    """
+    Apply network conditions to an interface using tc qdisc.
+
+    Strategy:
+      - Tear down the existing root qdisc unconditionally (ignore errors — there may be none).
+      - Rebuild from scratch based on the merged desired state.
+
+    Cases handled:
+      1. netem only (latency/loss/jitter, no bandwidth)
+      2. bandwidth only (TBF)
+      3. bandwidth + netem (HTB root → netem leaf)
+    """
     try:
-        # Retrieve current settings
-        current_latency, current_loss, current_jitter = get_qdisc_settings(interface)
-
-        # Get interface alias for flash messages
         alias = get_interface_alias(interface)
-        # Format interface name with alias for display
         display_name = f"{interface} ({alias})" if alias and alias != interface else interface
 
-        # Merge new values with existing ones
-        latency = latency if latency else current_latency
-        loss = loss if loss else current_loss
-        jitter = jitter if jitter else current_jitter
+        # Retrieve current settings and merge
+        current_latency, current_loss, current_jitter, current_bandwidth = get_qdisc_settings(interface)
 
-        # Ensure latency and jitter are in milliseconds
+        latency   = latency   if latency   is not None else current_latency
+        loss      = loss      if loss      is not None else current_loss
+        jitter    = jitter    if jitter    is not None else current_jitter
+        bandwidth = bandwidth if bandwidth is not None else current_bandwidth
+
+        # Normalise latency / jitter units
         if latency and not latency.endswith(('ms', 'us')):
             latency += 'ms'
         if jitter and not jitter.endswith(('ms', 'us')):
             jitter += 'ms'
-            
-        # If jitter is set but latency is not, set a minimal latency value
-        # because tc netem requires latency to be set when using jitter
-        if jitter != '0ms' and latency == '0ms':
-            latency = '1ms'  # Set a minimal latency value
-            logging.info(f"Setting minimal latency of 1ms to accommodate jitter setting")
 
-        # Apply latency, loss, and jitter settings
-        command = ['sudo', 'tc', 'qdisc', 'replace', 'dev', interface, 'root', 'netem']
-        if latency != '0ms':
-            if jitter != '0ms':
-                # Format: delay <latency> <jitter>
-                command.extend(['delay', latency, jitter])
-            else:
-                # Just latency without jitter
-                command.extend(['delay', latency])
-        if loss != '0%':
-            command.extend(['loss', loss.replace('%', '')])
+        # netem requires a latency value when jitter is set
+        if jitter and jitter != '0ms' and (not latency or latency == '0ms'):
+            latency = '1ms'
+            logging.info("Setting minimal 1ms latency to satisfy netem jitter requirement")
 
-        try:
-            result = subprocess.run(command, capture_output=True, text=True)
-            log_command(command, result.stdout)
-            if result.returncode != 0:
-                flash(f"Error applying qdisc to interface {display_name}: {result.stderr}", "error")
-                logging.error(f"Error applying qdisc to interface {interface} (return code {result.returncode}): {result.stderr}")
-            else:
-                flash(f"Network conditions applied successfully to interface {display_name}", "success")
-        except subprocess.SubprocessError as e:
-            flash(f"Failed to execute tc command for interface {display_name}: {str(e)}", "error")
-            logging.error(f"Subprocess error when applying qdisc to interface {interface}: {str(e)}")
+        has_netem = (latency and latency != '0ms') or (loss and loss != '0%') or (jitter and jitter != '0ms')
+        has_bw    = bool(bandwidth)
+
+        # --- Step 1: tear down existing root qdisc (cascades child classes/qdiscs) ---
+        del_result = subprocess.run(
+            ['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root'],
+            capture_output=True, text=True
+        )
+        # returncode != 0 is fine here — means no custom qdisc was present
+        log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root'], del_result.stdout)
+
+        # --- Step 2: rebuild ---
+        errors = []
+
+        def run_tc(cmd):
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            log_command(cmd, r.stdout)
+            if r.returncode != 0:
+                errors.append(r.stderr.strip())
+            return r.returncode == 0
+
+        if has_bw and has_netem:
+            # HTB root + netem leaf
+            run_tc(['sudo', 'tc', 'qdisc', 'add', 'dev', interface,
+                    'root', 'handle', '1:0', 'htb', 'default', '10'])
+            run_tc(['sudo', 'tc', 'class', 'add', 'dev', interface,
+                    'parent', '1:0', 'classid', '1:10', 'htb', 'rate', bandwidth])
+            netem_cmd = ['sudo', 'tc', 'qdisc', 'add', 'dev', interface,
+                         'parent', '1:10', 'handle', '20:0', 'netem']
+            if latency and latency != '0ms':
+                if jitter and jitter != '0ms':
+                    netem_cmd.extend(['delay', latency, jitter])
+                else:
+                    netem_cmd.extend(['delay', latency])
+            if loss and loss != '0%':
+                netem_cmd.extend(['loss', loss.replace('%', '')])
+            run_tc(netem_cmd)
+
+        elif has_bw:
+            # TBF for bandwidth-only
+            burst = compute_tbf_burst(bandwidth)
+            run_tc(['sudo', 'tc', 'qdisc', 'add', 'dev', interface,
+                    'root', 'tbf', 'rate', bandwidth, 'burst', burst, 'latency', '400ms'])
+
+        elif has_netem:
+            netem_cmd = ['sudo', 'tc', 'qdisc', 'add', 'dev', interface, 'root', 'netem']
+            if latency and latency != '0ms':
+                if jitter and jitter != '0ms':
+                    netem_cmd.extend(['delay', latency, jitter])
+                else:
+                    netem_cmd.extend(['delay', latency])
+            if loss and loss != '0%':
+                netem_cmd.extend(['loss', loss.replace('%', '')])
+            run_tc(netem_cmd)
+
+        if errors:
+            flash(f"Error applying conditions to {display_name}: {'; '.join(errors)}", "error")
+            logging.error(f"tc errors on {interface}: {errors}")
+        else:
+            flash(f"Network conditions applied to {display_name}", "success")
+
     except Exception as e:
-        flash(f"Error applying network conditions to interface {interface}: {str(e)}", "error")
+        flash(f"Error applying network conditions to {interface}: {str(e)}", "error")
         logging.error(f"Error in apply_qdisc for interface {interface}: {str(e)}")
 
 def remove_degradations(interface):
+    """Remove ALL tc qdisc settings (netem, TBF, HTB) from an interface."""
     try:
-        # Get interface alias for flash messages
         alias = get_interface_alias(interface)
-        # Format interface name with alias for display
         display_name = f"{interface} ({alias})" if alias and alias != interface else interface
-        
-        # First check if there's a netem qdisc to remove
-        check_result = subprocess.run(['sudo', 'tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
+
+        check_result = subprocess.run(
+            ['sudo', 'tc', 'qdisc', 'show', 'dev', interface],
+            capture_output=True, text=True
+        )
         log_command(['sudo', 'tc', 'qdisc', 'show', 'dev', interface], check_result.stdout)
-        
-        # Only attempt to remove if "netem" is in the output
-        if "netem" in check_result.stdout:
-            result = subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], capture_output=True, text=True)
-            log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root', 'netem'], result.stdout)
+
+        has_custom = any(kw in check_result.stdout for kw in ('netem', 'htb', 'tbf'))
+        if has_custom:
+            # Deleting root cascades all child classes and qdiscs
+            result = subprocess.run(
+                ['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root'],
+                capture_output=True, text=True
+            )
+            log_command(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root'], result.stdout)
             if result.returncode != 0:
-                flash(f"Error removing qdisc from interface {display_name}: {result.stderr}", "error")
-                logging.error(f"Error removing qdisc from interface {interface} (return code {result.returncode}): {result.stderr}")
+                flash(f"Error removing qdisc from {display_name}: {result.stderr}", "error")
+                logging.error(f"Error removing qdisc from {interface} (rc={result.returncode}): {result.stderr}")
             else:
-                flash(f"Network conditions removed successfully from interface {display_name}", "success")
+                flash(f"Network conditions removed from {display_name}", "success")
         else:
-            logging.info(f"No netem qdisc to remove on interface {interface}")
-            # Don't show a flash message for interfaces with no settings to remove
+            logging.info(f"No custom qdisc to remove on {interface}")
     except subprocess.SubprocessError as e:
-        flash(f"Failed to execute tc command for interface {display_name}: {str(e)}", "error")
-        logging.error(f"Subprocess error when removing qdisc from interface {interface}: {str(e)}")
+        flash(f"Failed to execute tc command for {interface}: {str(e)}", "error")
+        logging.error(f"Subprocess error removing qdisc from {interface}: {str(e)}")
     except Exception as e:
-        flash(f"Error removing network conditions from interface {interface}: {str(e)}", "error")
-        logging.error(f"Error in remove_degradations for interface {interface}: {str(e)}")
+        flash(f"Error removing network conditions from {interface}: {str(e)}", "error")
+        logging.error(f"Error in remove_degradations for {interface}: {str(e)}")
 
 def is_tcpdump_available():
     """Check if tcpdump is installed on the system"""
@@ -463,6 +584,68 @@ def get_nat_status(interface):
         logging.error(f"Error checking NAT status for interface {interface} (Context: {log_context_message}): {str(e)}")
         return False
 
+# ---------------------------------------------------------------------------
+# Route table management helpers
+# ---------------------------------------------------------------------------
+
+def parse_routes(ip_version=4):
+    """
+    Run 'ip [−6] route show' and return a list of dicts with parsed fields.
+    Each dict has: destination, gateway, interface, proto, metric, scope, src, raw.
+    """
+    try:
+        cmd = ['ip', '-6', 'route', 'show'] if ip_version == 6 else ['ip', 'route', 'show']
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        log_command(cmd, result.stdout)
+        routes = []
+        for line in result.stdout.strip().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            route = {
+                'destination': '', 'gateway': '', 'interface': '',
+                'proto': '', 'metric': '', 'scope': '', 'src': '', 'raw': line,
+            }
+            parts = line.split()
+            if parts:
+                route['destination'] = parts[0]
+            i = 1
+            while i < len(parts):
+                key = parts[i]
+                if key in ('via', 'dev', 'proto', 'metric', 'scope', 'src') and i + 1 < len(parts):
+                    field_map = {
+                        'via': 'gateway', 'dev': 'interface', 'proto': 'proto',
+                        'metric': 'metric', 'scope': 'scope', 'src': 'src',
+                    }
+                    route[field_map[key]] = parts[i + 1]
+                    i += 2
+                else:
+                    i += 1
+            routes.append(route)
+        return routes
+    except Exception as e:
+        logging.error(f"Error parsing IPv{ip_version} routes: {str(e)}")
+        return []
+
+
+def exec_ip_route(args, ip_version=4):
+    """
+    Run 'sudo ip [−6] route <args>' and return (success, stderr).
+    With --net=host in Docker, this modifies the host routing table directly.
+    """
+    cmd = ['sudo', 'ip']
+    if ip_version == 6:
+        cmd.append('-6')
+    cmd.extend(['route'] + args)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    log_command(cmd, result.stdout + result.stderr)
+    return result.returncode == 0, result.stderr.strip()
+
+
+# ---------------------------------------------------------------------------
+# Flask routes — main app
+# ---------------------------------------------------------------------------
+
 @app.route('/')
 def index():
     try:
@@ -510,42 +693,49 @@ def apply():
         latency = request.form.get('latency')
         loss = request.form.get('loss')
         jitter = request.form.get('jitter')
-        
+        bw_value = request.form.get('bandwidth_value', '').strip()
+        bw_unit  = request.form.get('bandwidth_unit', 'mbit').strip()
+
+        # Combine bandwidth value + unit
+        bandwidth_raw = f"{bw_value}{bw_unit}" if bw_value else None
+
         # Validate inputs
         validation_errors = []
-        
-        # Validate latency
+
         latency_valid, latency_clean, latency_error = validate_latency_jitter(latency, 'Latency')
         if not latency_valid:
             validation_errors.append(latency_error)
             latency = None
         else:
             latency = latency_clean
-        
-        # Validate jitter
+
         jitter_valid, jitter_clean, jitter_error = validate_latency_jitter(jitter, 'Jitter')
         if not jitter_valid:
             validation_errors.append(jitter_error)
             jitter = None
         else:
             jitter = jitter_clean
-        
-        # Validate loss
+
         loss_valid, loss_clean, loss_error = validate_loss(loss)
         if not loss_valid:
             validation_errors.append(loss_error)
             loss = None
         else:
             loss = loss_clean
-        
-        # If there are validation errors, flash them and redirect
+
+        bw_valid, bw_clean, bw_error = validate_bandwidth(bandwidth_raw)
+        if not bw_valid:
+            validation_errors.append(bw_error)
+            bandwidth_raw = None
+        else:
+            bandwidth_raw = bw_clean  # normalized, e.g. "10mbit"
+
         if validation_errors:
             for error in validation_errors:
                 flash(error, 'error')
             return redirect(url_for('index'))
-        
-        # Apply validated settings to qdisc
-        apply_qdisc(interface, latency, loss, jitter)
+
+        apply_qdisc(interface, latency, loss, jitter, bandwidth_raw)
         
         return redirect(url_for('index'))
     except Exception as e:
@@ -581,12 +771,12 @@ def reset_all():
             try:
                 interface_name = interface_info['name']
                 
-                # Check if there's a netem qdisc to remove on this interface
-                check_result = subprocess.run(['sudo', 'tc', 'qdisc', 'show', 'dev', interface_name], 
-                                             capture_output=True, text=True)
-                
-                # Only count interfaces where netem was actually present
-                if "netem" in check_result.stdout:
+                check_result = subprocess.run(
+                    ['sudo', 'tc', 'qdisc', 'show', 'dev', interface_name],
+                    capture_output=True, text=True
+                )
+
+                if any(kw in check_result.stdout for kw in ('netem', 'htb', 'tbf')):
                     remove_degradations(interface_name)
                     reset_count += 1
                     
@@ -958,6 +1148,89 @@ def toggle_nat(interface_name):
         flash(f"An unexpected error occurred while toggling NAT: {str(e)}", "error")
     
     return redirect(url_for('index'))
+
+@app.route('/routes')
+def routes_page():
+    try:
+        routes_v4 = parse_routes(4)
+        routes_v6 = parse_routes(6)
+        interfaces = list_interfaces()
+        hostname = socket.gethostname()
+        return render_template('routes.html', routes_v4=routes_v4, routes_v6=routes_v6,
+                               interfaces=interfaces, hostname=hostname)
+    except Exception as e:
+        logging.error(f"Error in routes_page: {str(e)}")
+        flash(f"Error loading route table: {str(e)}", "error")
+        return redirect(url_for('index'))
+
+
+@app.route('/routes/add', methods=['POST'])
+def add_route_handler():
+    try:
+        destination = request.form.get('destination', '').strip()
+        gateway     = request.form.get('gateway', '').strip()
+        interface   = request.form.get('interface', '').strip()
+        metric      = request.form.get('metric', '').strip()
+        ip_version  = int(request.form.get('ip_version', 4))
+
+        if not destination:
+            flash("Destination prefix is required", "error")
+            return redirect(url_for('routes_page'))
+        if not gateway and not interface:
+            flash("A gateway (via) or outgoing interface must be specified", "error")
+            return redirect(url_for('routes_page'))
+
+        args = ['add', destination]
+        if gateway:
+            args += ['via', gateway]
+        if interface:
+            args += ['dev', interface]
+        if metric:
+            args += ['metric', metric]
+
+        ok, err = exec_ip_route(args, ip_version)
+        if ok:
+            flash(
+                f"Route {destination} added. "
+                "Note: route changes made here are temporary and will not survive a reboot.",
+                "success"
+            )
+        else:
+            flash(f"Failed to add route {destination}: {err}", "error")
+    except Exception as e:
+        logging.error(f"Error adding route: {str(e)}")
+        flash(f"Unexpected error adding route: {str(e)}", "error")
+    return redirect(url_for('routes_page'))
+
+
+@app.route('/routes/del', methods=['POST'])
+def del_route_handler():
+    try:
+        destination = request.form.get('destination', '').strip()
+        gateway     = request.form.get('gateway', '').strip()
+        interface   = request.form.get('interface', '').strip()
+        ip_version  = int(request.form.get('ip_version', 4))
+
+        if not destination:
+            flash("Destination is required to delete a route", "error")
+            return redirect(url_for('routes_page'))
+
+        args = ['del', destination]
+        if gateway:
+            args += ['via', gateway]
+        if interface:
+            args += ['dev', interface]
+
+        ok, err = exec_ip_route(args, ip_version)
+        if ok:
+            flash(f"Route {destination} removed", "success")
+        else:
+            flash(f"Failed to remove route {destination}: {err}", "error")
+    except Exception as e:
+        logging.error(f"Error deleting route: {str(e)}")
+        flash(f"Unexpected error deleting route: {str(e)}", "error")
+    return redirect(url_for('routes_page'))
+
 
 # Ensure all captures are stopped and clean up the pcap directory when the application exits
 import atexit

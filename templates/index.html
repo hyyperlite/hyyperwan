@@ -3,385 +3,457 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hyyperwan - {{ hostname }}</title>
+    <title>HyyperWAN — {{ hostname }}</title>
+    <!-- Apply saved theme before render to avoid flash -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('hyyperwan-theme') || '';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}">
-    <script>
-        // Function to toggle alias editing form visibility
-        function toggleAliasForm(interfaceName) {
-            const form = document.getElementById('alias-form-' + interfaceName);
-            const displayElem = document.getElementById('alias-display-' + interfaceName);
-            
-            if (form.style.display === 'none' || form.style.display === '') {
-                form.style.display = 'block';
-                displayElem.style.display = 'none';
-            } else {
-                form.style.display = 'none';
-                displayElem.style.display = 'block';
-            }
-        }
-    </script>
 </head>
 <body>
-    <div class="hostname-display">hostname: {{ hostname }}</div>
-    <h1>HyyperWAN</h1>
-    
-    <!-- Flash messages section -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-messages">
-                {% for category, message in messages %}
-                    <div class="flash-message {{ category }}">{{ message }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
 
-    <!-- IP Command Availability Check -->
-    {% if not ip_available %}
-    <div class="critical-warning">
-        <strong>Missing Dependency:</strong> The 'ip' command is not installed on this system.
-        <p>This command is required to list and manage network interfaces.</p>
-        <p class="installation-note">You can install it by running: <code>sudo apt install iproute2</code> (Debian/Ubuntu) or <code>sudo yum install iproute</code> (RHEL/CentOS)</p>
+<!-- =====================================================================
+     Navigation
+     ===================================================================== -->
+<nav class="navbar">
+    <span class="navbar-brand">HyyperWAN</span>
+    <div class="navbar-links">
+        <a href="{{ url_for('index') }}" class="nav-link active">Interfaces</a>
+        <a href="{{ url_for('routes_page') }}" class="nav-link">Routes</a>
+    </div>
+    <div class="navbar-right">
+        <span class="hostname-badge">{{ hostname }}</span>
+        <button class="theme-btn" id="themeBtn" onclick="cycleTheme()">Dark Red</button>
+    </div>
+</nav>
+
+<!-- =====================================================================
+     Main content
+     ===================================================================== -->
+<main class="main-content">
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages">
+        {% for category, message in messages %}
+        <div class="flash-message {{ category }}">{{ message }}</div>
+        {% endfor %}
     </div>
     {% endif %}
-    
+    {% endwith %}
+
+    <!-- Dependency warning -->
+    {% if not ip_available %}
+    <div class="critical-warning">
+        <strong>Missing Dependency: 'ip' command not found</strong>
+        <p>The <code>ip</code> command is required to list and manage network interfaces.</p>
+        <p>Install it with: <code>sudo apt install iproute2</code> (Debian/Ubuntu) or
+           <code>sudo yum install iproute</code> (RHEL/CentOS)</p>
+    </div>
+    {% endif %}
+
     {% if ip_available %}
-    <table>
-        <thead>
-            <tr>
-                <th>Interface</th>
-                <th>IP Address</th>
-                <th>Latency</th>
-                <th>Loss</th>
-                <th>Jitter</th>
-                <th>Actions</th>
-                {% if not tools_column_disabled %}
-                <th class="tools-header">Tools</th> {# Capture and NAT buttons will now be in this single column #}
-                {% endif %}
-            </tr>
-        </thead>
-        <tbody>
+
+    <!-- Interface table -->
+    <div class="section-header">
+        <span class="section-title">Network Interfaces</span>
+        <span class="section-sub">Applies tc qdisc impairments to the host</span>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Interface</th>
+                    <th>IP Address</th>
+                    <th style="text-align:center">Latency</th>
+                    <th style="text-align:center">Loss</th>
+                    <th style="text-align:center">Jitter</th>
+                    <th style="text-align:center">Bandwidth</th>
+                    <th>Actions</th>
+                    {% if not tools_column_disabled %}
+                    <th>Tools</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
             {% for interface in interfaces %}
             <tr>
-                <td>
-                    <!-- Interface name with alias display and edit functionality -->
-                    <div id="alias-display-{{ interface.name }}" class="interface-name-display">
-                        <strong>{{ interface.name }}</strong>
+                <!-- Interface name + alias -->
+                <td class="iface-cell">
+                    <div id="alias-display-{{ interface.name }}">
+                        <div class="iface-name">{{ interface.name }}</div>
                         {% if interface.alias %}
-                            <br>
-                            <span class="interface-alias">({{ interface.alias }})</span>
+                        <div class="iface-alias">{{ interface.alias }}</div>
                         {% endif %}
-                        <button type="button" class="alias-edit-button" 
+                        <button type="button" class="alias-edit-btn"
                                 onclick="toggleAliasForm('{{ interface.name }}')">
-                            {% if interface.alias %}Edit{% else %}Add{% endif %} Alias
+                            {% if interface.alias %}Edit alias{% else %}Add alias{% endif %}
                         </button>
                     </div>
-                    
-                    <!-- Hidden form for editing alias -->
-                    <div id="alias-form-{{ interface.name }}" class="alias-edit-form" style="display: none;">
-                        <form action="{{ url_for('update_interface_alias') }}" method="post">
+                    <div id="alias-form-{{ interface.name }}" class="alias-edit-form" style="display:none">
+                        <form action="{{ url_for('update_interface_alias') }}" method="post"
+                              style="display:contents">
                             <input type="hidden" name="interface" value="{{ interface.name }}">
-                            <input type="text" name="alias" value="{{ interface.alias }}" 
-                                   placeholder="Enter interface alias">
-                            <button type="submit">Save</button>
-                            <button type="button" onclick="toggleAliasForm('{{ interface.name }}')">Cancel</button>
+                            <input type="text" name="alias" value="{{ interface.alias }}"
+                                   placeholder="Alias name">
+                            <button type="submit" class="btn btn-sm alias-save-btn">Save</button>
+                            <button type="button" class="btn btn-sm alias-cancel-btn"
+                                    onclick="toggleAliasForm('{{ interface.name }}')">Cancel</button>
                         </form>
                     </div>
                 </td>
-                <td>{{ interface.ip }}</td>
-                <td>{{ interface.latency }}</td>
-                <td>{{ interface.loss }}</td>
-                <td>{{ interface.jitter }}</td>
-                <td class="actions-cell">
-                    {% if tc_available %}
-                    <form id="apply_interface" action="{{ url_for('apply_interface') }}" method="post">
-                        <input type="hidden" name="interface" value="{{ interface.name }}">
-                        <input type="text" name="latency" placeholder="Latency (e.g., 100ms)">
-                        <input type="text" name="loss" placeholder="Loss (e.g., 1%)">
-                        <input type="text" name="jitter" placeholder="Jitter (e.g., 10ms)">
-                        <button type="submit">Apply</button>
-                    </form>
-                    <form action="{{ url_for('remove_interface') }}" method="post">
-                        <input type="hidden" name="interface" value="{{ interface.name }}">
-                        <button type="submit">Remove</button>
-                    </form>
+
+                <!-- IP Address -->
+                <td><span class="ip-addr">{{ interface.ip }}</span></td>
+
+                <!-- Status badges -->
+                <td class="status-cell">
+                    {% if interface.latency and interface.latency != '0ms' %}
+                    <span class="badge badge-active">{{ interface.latency }}</span>
                     {% else %}
-                    <span class="utility-unavailable-message">
-                        tc qdisc not installed: please install tc qdisc utility on host
-                    </span>
+                    <span class="badge badge-zero">—</span>
                     {% endif %}
                 </td>
+                <td class="status-cell">
+                    {% if interface.loss and interface.loss != '0%' %}
+                    <span class="badge badge-active">{{ interface.loss }}</span>
+                    {% else %}
+                    <span class="badge badge-zero">—</span>
+                    {% endif %}
+                </td>
+                <td class="status-cell">
+                    {% if interface.jitter and interface.jitter != '0ms' %}
+                    <span class="badge badge-active">{{ interface.jitter }}</span>
+                    {% else %}
+                    <span class="badge badge-zero">—</span>
+                    {% endif %}
+                </td>
+                <td class="status-cell">
+                    {% if interface.bandwidth %}
+                    <span class="badge badge-bw">{{ interface.bandwidth }}</span>
+                    {% else %}
+                    <span class="badge badge-zero">—</span>
+                    {% endif %}
+                </td>
+
+                <!-- Actions -->
+                <td class="actions-cell">
+                    {% if tc_available %}
+                    <form action="{{ url_for('apply_interface') }}" method="post" class="apply-form">
+                        <input type="hidden" name="interface" value="{{ interface.name }}">
+                        <div class="form-row">
+                            <input type="text" name="latency"
+                                   placeholder="Latency"
+                                   title="Latency (e.g. 100ms, 50us)">
+                            <input type="text" name="loss"
+                                   placeholder="Loss %"
+                                   title="Packet loss (e.g. 1%)">
+                            <input type="text" name="jitter"
+                                   placeholder="Jitter"
+                                   title="Jitter / delay variation (e.g. 10ms)">
+                        </div>
+                        <div class="form-row">
+                            <div class="bw-group" title="Bandwidth limit (leave empty to keep current)">
+                                <input type="text" name="bandwidth_value" class="bw-input"
+                                       placeholder="BW">
+                                <select name="bandwidth_unit" class="bw-unit">
+                                    <option value="kbit">kbit</option>
+                                    <option value="mbit" selected>mbit</option>
+                                    <option value="gbit">gbit</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                            <button type="button" class="btn btn-secondary btn-sm"
+                                    onclick="submitRemove('{{ interface.name }}')">Remove</button>
+                        </div>
+                    </form>
+                    <!-- hidden remove form -->
+                    <form id="remove-form-{{ interface.name }}"
+                          action="{{ url_for('remove_interface') }}" method="post"
+                          style="display:none">
+                        <input type="hidden" name="interface" value="{{ interface.name }}">
+                    </form>
+                    {% else %}
+                    <span class="tool-unavailable">tc not installed on host</span>
+                    {% endif %}
+                </td>
+
+                <!-- Tools -->
                 {% if not tools_column_disabled %}
                 <td class="tools-cell">
-                    {% if tcpdump_available %}
-                        <button type="button" class="capture-button"
+                    <div class="tools-stack">
+                        {% if tcpdump_available %}
+                        <button type="button" class="btn btn-info btn-sm"
                                 onclick="openCaptureModal('{{ interface.name }}', '{{ interface.alias }}')"
-                                title="Execute a tcpdump capture on this interface and download the resulting PCAP file.">
+                                title="Start a tcpdump packet capture on this interface">
                             Capture
                         </button>
-                    {% else %}
-                        <span class="capture-unavailable-message">tcpdump not installed</span>
-                    {% endif %}
-
-                    {# NAT Toggle Button - Placed below Capture button #}
-                    {# This div ensures the NAT button appears on a new line and has some top margin #}
-                    <div style="margin-top: 5px;">
-                        {% if iptables_available %}
-                            <form action="{{ url_for('toggle_nat', interface_name=interface.name) }}" method="POST" onsubmit="return confirm('Are you sure you want to {{ 'disable' if interface.nat_status else 'enable' }} Source NAT (Masquerade) on {{ interface.alias if interface.alias else interface.name }}?');" style="display: inline-block;">
-                                <input type="hidden" name="action" value="{{ 'disable' if interface.nat_status else 'enable' }}">
-                                <button type="submit"
-                                        class="capture-button {{ 'btn-success' if interface.nat_status else 'btn-danger' }}"
-                                        title="{% if interface.nat_status %}Click to disable Source NAT (Masquerade) on {{ interface.alias if interface.alias else interface.name }}.{% else %}Click to enable Source NAT (Masquerade) on {{ interface.alias if interface.alias else interface.name }} for routed traffic egressing this interface.{% endif %}">
-                                    {{ 'NAT ON' if interface.nat_status else 'NAT OFF' }}
-                                </button>
-                            </form>
                         {% else %}
-                            {# Show NAT N/A button if iptables is not available #}
-                            <button type="button" class="capture-button btn-secondary" disabled data-toggle="tooltip" title="iptables command not found on system">
-                                NAT N/A
+                        <span class="tool-unavailable">tcpdump<br>not installed</span>
+                        {% endif %}
+
+                        {% if iptables_available %}
+                        <form action="{{ url_for('toggle_nat', interface_name=interface.name) }}"
+                              method="POST"
+                              onsubmit="return confirm('{{ 'Disable' if interface.nat_status else 'Enable' }} Source NAT on {{ interface.alias if interface.alias else interface.name }}?')">
+                            <input type="hidden" name="action"
+                                   value="{{ 'disable' if interface.nat_status else 'enable' }}">
+                            <button type="submit"
+                                    class="btn btn-sm {% if interface.nat_status %}nat-on{% else %}nat-off{% endif %}"
+                                    title="{% if interface.nat_status %}NAT/Masquerade is ON — click to disable{% else %}NAT/Masquerade is OFF — click to enable{% endif %}">
+                                {{ 'NAT ON' if interface.nat_status else 'NAT OFF' }}
                             </button>
+                        </form>
+                        {% else %}
+                        <button class="btn btn-sm" disabled title="iptables not available">NAT N/A</button>
                         {% endif %}
                     </div>
                 </td>
                 {% endif %}
             </tr>
             {% endfor %}
-        </tbody>
-    </table>
+            {% if not interfaces %}
+            <tr><td colspan="8" class="no-data">No interfaces found</td></tr>
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
 
-    <!-- Reset All button -->
-    <div class="reset-all-container">
-        <form action="{{ url_for('reset_all_interfaces') }}" method="post">
-            <button type="submit" class="reset-all-button">Reset All Interfaces</button>
+    <!-- Reset All -->
+    <div class="reset-container">
+        <form action="{{ url_for('reset_all_interfaces') }}" method="post"
+              onsubmit="return confirm('Reset ALL tc settings on all interfaces?')">
+            <button type="submit" class="btn btn-danger btn-lg">Reset All Interfaces</button>
         </form>
     </div>
+
     {% else %}
-    <div class="no-interfaces-message">
-        <p>Unable to list network interfaces because the required 'ip' command is not available.</p>
-        <p>Please install the iproute2 package and restart the application.</p>
+    <div class="no-data" style="padding:40px">
+        Unable to list interfaces — <code>ip</code> command not found.
     </div>
     {% endif %}
 
-    <!-- Packet Capture Modal -->
-    <div id="captureModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2 id="captureModalTitle">Packet Capture</h2>
-            <form id="captureForm">
-                <input type="hidden" id="captureInterface" name="interface" value="">
-                
-                <div class="form-group">
-                    <label for="hostFilter">Host Filter (comma separated):</label>
-                    <input type="text" id="hostFilter" name="host_filter" placeholder="e.g., 192.168.1.10, 10.0.0.5">
-                    <div class="filter-logic">
-                        <span>Multiple hosts:</span>
-                        <label class="radio-label">
-                            <input type="radio" name="host_filter_logic" value="and"> AND
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="host_filter_logic" value="or" checked> OR
-                        </label>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="networkFilter">Network Filter (comma separated):</label>
-                    <input type="text" id="networkFilter" name="network_filter" placeholder="e.g., 192.168.1.0/24, 10.0.0.0/8">
-                    <div class="filter-logic">
-                        <span>Multiple networks:</span>
-                        <label class="radio-label">
-                            <input type="radio" name="network_filter_logic" value="and"> AND
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="network_filter_logic" value="or" checked> OR
-                        </label>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="portFilter">Port Filter (comma separated):</label>
-                    <input type="text" id="portFilter" name="port_filter" placeholder="e.g., 80, 443, 22">
-                    <div class="filter-logic">
-                        <span>Multiple ports:</span>
-                        <label class="radio-label">
-                            <input type="radio" name="port_filter_logic" value="and"> AND
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="port_filter_logic" value="or" checked> OR
-                        </label>
-                    </div>
-                </div>
-                
-                <div class="form-actions">
-                    <button type="button" id="startCaptureBtn" class="start-button">Start Capture</button>
-                    <button type="button" id="stopCaptureBtn" class="stop-button" disabled>Stop & Download</button>
-                </div>
-                
-                <div id="captureStatus" class="capture-status"></div>
-            </form>
-        </div>
-    </div>
+</main>
 
-    <script>
-        // Variables to track active capture
-        let activeCaptureId = null;
-        let captureInterval = null;
-        let startTime = null;
-        
-        // Open capture modal for an interface
-        function openCaptureModal(interfaceName, interfaceAlias) {
-            const modal = document.getElementById('captureModal');
-            const modalTitle = document.getElementById('captureModalTitle');
-            document.getElementById('captureInterface').value = interfaceName;
-            document.getElementById('captureStatus').textContent = '';
-            document.getElementById('captureStatus').className = 'capture-status';
-            document.getElementById('startCaptureBtn').disabled = false;
-            document.getElementById('stopCaptureBtn').disabled = true;
-            
-            // Update the modal title with interface name and alias
-            if (interfaceAlias && interfaceAlias !== interfaceName && interfaceAlias !== '') {
-                modalTitle.textContent = `Packet Capture: ${interfaceName} (${interfaceAlias})`;
+<!-- =====================================================================
+     Packet Capture Modal
+     ===================================================================== -->
+<div id="captureModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
+        <button class="modal-close" onclick="handleModalClose()" aria-label="Close">&times;</button>
+        <div class="modal-title" id="captureModalTitle">Packet Capture</div>
+        <form id="captureForm">
+            <input type="hidden" id="captureInterface" name="interface" value="">
+
+            <div class="form-group">
+                <label for="hostFilter">Host filter (comma-separated IPs)</label>
+                <input type="text" id="hostFilter" name="host_filter"
+                       placeholder="e.g. 192.168.1.10, 10.0.0.5">
+                <div class="filter-logic">
+                    <span>Multiple hosts:</span>
+                    <label><input type="radio" name="host_filter_logic" value="and"> AND</label>
+                    <label><input type="radio" name="host_filter_logic" value="or" checked> OR</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="networkFilter">Network filter (comma-separated CIDRs)</label>
+                <input type="text" id="networkFilter" name="network_filter"
+                       placeholder="e.g. 192.168.1.0/24, 10.0.0.0/8">
+                <div class="filter-logic">
+                    <span>Multiple networks:</span>
+                    <label><input type="radio" name="network_filter_logic" value="and"> AND</label>
+                    <label><input type="radio" name="network_filter_logic" value="or" checked> OR</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="portFilter">Port filter (comma-separated ports)</label>
+                <input type="text" id="portFilter" name="port_filter"
+                       placeholder="e.g. 80, 443, 22">
+                <div class="filter-logic">
+                    <span>Multiple ports:</span>
+                    <label><input type="radio" name="port_filter_logic" value="and"> AND</label>
+                    <label><input type="radio" name="port_filter_logic" value="or" checked> OR</label>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" id="startCaptureBtn" class="btn btn-success">
+                    Start Capture
+                </button>
+                <button type="button" id="stopCaptureBtn" class="btn btn-danger" disabled>
+                    Stop &amp; Download
+                </button>
+            </div>
+
+            <div id="captureStatus" class="capture-status"></div>
+        </form>
+    </div>
+</div>
+
+<!-- =====================================================================
+     JavaScript
+     ===================================================================== -->
+<script>
+// ---- Theme cycling -------------------------------------------------------
+const THEMES      = ['', 'dark-blue', 'light'];
+const THEME_NAMES = ['Dark Red', 'Dark Blue', 'Light'];
+const THEME_KEY   = 'hyyperwan-theme';
+
+function getTheme() { return localStorage.getItem(THEME_KEY) || ''; }
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
+    const idx = THEMES.indexOf(theme);
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.textContent = THEME_NAMES[idx >= 0 ? idx : 0];
+}
+
+function cycleTheme() {
+    const cur = getTheme();
+    const idx = THEMES.indexOf(cur);
+    applyTheme(THEMES[(idx + 1) % THEMES.length]);
+}
+
+// Initialise button label on load
+(function () { applyTheme(getTheme()); })();
+
+// ---- Alias toggle --------------------------------------------------------
+function toggleAliasForm(name) {
+    const form    = document.getElementById('alias-form-' + name);
+    const display = document.getElementById('alias-display-' + name);
+    const hidden  = form.style.display === 'none' || form.style.display === '';
+    form.style.display    = hidden ? 'flex' : 'none';
+    display.style.display = hidden ? 'none' : 'block';
+}
+
+// ---- Remove form helper --------------------------------------------------
+function submitRemove(ifaceName) {
+    if (confirm('Remove all tc impairments from ' + ifaceName + '?')) {
+        document.getElementById('remove-form-' + ifaceName).submit();
+    }
+}
+
+// ---- Packet Capture Modal ------------------------------------------------
+let activeCaptureId  = null;
+let captureInterval  = null;
+let captureStartTime = null;
+
+function openCaptureModal(ifaceName, ifaceAlias) {
+    document.getElementById('captureInterface').value = ifaceName;
+    document.getElementById('captureStatus').className = 'capture-status';
+    document.getElementById('captureStatus').textContent = '';
+    document.getElementById('startCaptureBtn').disabled = false;
+    document.getElementById('stopCaptureBtn').disabled  = true;
+    document.getElementById('hostFilter').value    = '';
+    document.getElementById('networkFilter').value = '';
+    document.getElementById('portFilter').value    = '';
+    document.querySelector('[name="host_filter_logic"][value="or"]').checked    = true;
+    document.querySelector('[name="network_filter_logic"][value="or"]').checked = true;
+    document.querySelector('[name="port_filter_logic"][value="or"]').checked    = true;
+
+    const title = ifaceAlias && ifaceAlias !== ifaceName && ifaceAlias !== ''
+        ? `Packet Capture: ${ifaceName} (${ifaceAlias})`
+        : `Packet Capture: ${ifaceName}`;
+    document.getElementById('captureModalTitle').textContent = title;
+
+    document.getElementById('captureModal').classList.add('open');
+}
+
+function handleModalClose() {
+    if (activeCaptureId) {
+        if (!confirm('A capture is running. Stop it?')) return;
+        stopCapture();
+    }
+    document.getElementById('captureModal').classList.remove('open');
+}
+
+// Close when clicking backdrop
+document.getElementById('captureModal').addEventListener('click', function (e) {
+    if (e.target === this) handleModalClose();
+});
+
+document.getElementById('startCaptureBtn').addEventListener('click', function () {
+    const formData = new FormData(document.getElementById('captureForm'));
+    const statusEl = document.getElementById('captureStatus');
+
+    statusEl.className = 'capture-status info visible';
+    statusEl.textContent = 'Starting capture…';
+    this.disabled = true;
+
+    fetch('/start_capture', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                activeCaptureId = data.capture_id;
+                captureStartTime = Date.now();
+                statusEl.className = 'capture-status success visible';
+                statusEl.textContent = 'Capturing… (limit: 10 000 packets)';
+                document.getElementById('stopCaptureBtn').disabled = false;
+
+                captureInterval = setInterval(() => {
+                    const secs = Math.floor((Date.now() - captureStartTime) / 1000);
+                    statusEl.textContent = `Capturing… ${secs}s elapsed (limit: 10 000 packets)`;
+                }, 2000);
             } else {
-                modalTitle.textContent = `Packet Capture: ${interfaceName}`;
-            }
-            
-            // Reset form fields
-            document.getElementById('hostFilter').value = '';
-            document.getElementById('networkFilter').value = '';
-            document.getElementById('portFilter').value = '';
-            
-            // Reset filter logic radio buttons
-            document.querySelector('input[name="host_filter_logic"][value="or"]').checked = true;
-            document.querySelector('input[name="network_filter_logic"][value="or"]').checked = true;
-            document.querySelector('input[name="port_filter_logic"][value="or"]').checked = true;
-            
-            modal.style.display = 'block';
-        }
-        
-        // Handle modal close button
-        document.querySelector('.close-button').onclick = function() {
-            handleModalClose();
-        }
-        
-        function handleModalClose() {
-            // If there's an active capture, ask user before closing
-            if (activeCaptureId) {
-                if (confirm('A capture is in progress. Do you want to stop it?')) {
-                    stopCapture();
-                } else {
-                    return; // Don't close modal if user cancels
-                }
-            }
-            document.getElementById('captureModal').style.display = 'none';
-        }
-        
-        // Start packet capture
-        document.getElementById('startCaptureBtn').onclick = function() {
-            const form = document.getElementById('captureForm');
-            const formData = new FormData(form);
-            
-            // Display status message
-            const statusElem = document.getElementById('captureStatus');
-            statusElem.textContent = 'Starting capture...';
-            statusElem.className = 'capture-status info';
-            
-            // Disable start button and enable stop button
-            document.getElementById('startCaptureBtn').disabled = true;
-            
-            fetch('/start_capture', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    activeCaptureId = data.capture_id;
-                    statusElem.textContent = 'Capturing packets... (limit: 10,000 packets)';
-                    statusElem.className = 'capture-status success';
-                    document.getElementById('stopCaptureBtn').disabled = false;
-                    
-                    // Set start time and update status every 3 seconds
-                    startTime = new Date();
-                    captureInterval = setInterval(() => {
-                        const elapsedSeconds = Math.floor((new Date() - startTime) / 1000);
-                        statusElem.textContent = `Capturing packets... (${elapsedSeconds}s elapsed, limit: 10,000 packets)`;
-                    }, 3000);
-                } else {
-                    statusElem.textContent = `Error: ${data.error}`;
-                    statusElem.className = 'capture-status error';
-                    document.getElementById('startCaptureBtn').disabled = false;
-                }
-            })
-            .catch(error => {
-                statusElem.textContent = `Error: ${error.message}`;
-                statusElem.className = 'capture-status error';
+                statusEl.className = 'capture-status error visible';
+                statusEl.textContent = 'Error: ' + data.error;
                 document.getElementById('startCaptureBtn').disabled = false;
-            });
-        };
-        
-        // Stop packet capture and download
-        document.getElementById('stopCaptureBtn').onclick = function() {
-            stopCapture();
-        };
-        
-        function stopCapture() {
-            if (!activeCaptureId) return;
-            
-            const statusElem = document.getElementById('captureStatus');
-            statusElem.textContent = 'Stopping capture...';
-            
-            // Clear update interval
-            if (captureInterval) {
-                clearInterval(captureInterval);
-                captureInterval = null;
             }
-            
-            fetch(`/stop_capture/${activeCaptureId}`, {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    statusElem.textContent = 'Capture stopped, preparing download...';
-                    statusElem.className = 'capture-status success';
-                    
-                    // Download the file
-                    const captureId = activeCaptureId;
-                    const fileName = data.file;
-                    
-                    // Create a download link
-                    setTimeout(() => {
-                        window.location.href = `/download_capture/${captureId}?file=${fileName}`;
-                        statusElem.textContent = 'Download started! You can start a new capture.';
-                        
-                        // Reset capture state
-                        activeCaptureId = null;
-                        document.getElementById('startCaptureBtn').disabled = false;
-                        document.getElementById('stopCaptureBtn').disabled = true;
-                    }, 1000);
-                } else {
-                    statusElem.textContent = `Error: ${data.error}`;
-                    statusElem.className = 'capture-status error';
+        })
+        .catch(err => {
+            statusEl.className = 'capture-status error visible';
+            statusEl.textContent = 'Error: ' + err.message;
+            document.getElementById('startCaptureBtn').disabled = false;
+        });
+});
+
+document.getElementById('stopCaptureBtn').addEventListener('click', stopCapture);
+
+function stopCapture() {
+    if (!activeCaptureId) return;
+    const statusEl = document.getElementById('captureStatus');
+    statusEl.className = 'capture-status info visible';
+    statusEl.textContent = 'Stopping…';
+    clearInterval(captureInterval);
+    captureInterval = null;
+
+    const cid = activeCaptureId;
+    fetch('/stop_capture/' + cid, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                statusEl.className = 'capture-status success visible';
+                statusEl.textContent = 'Download starting…';
+                setTimeout(() => {
+                    window.location.href = `/download_capture/${cid}?file=${data.file}`;
+                    statusEl.textContent = 'Download started. You can start a new capture.';
+                    activeCaptureId = null;
                     document.getElementById('startCaptureBtn').disabled = false;
-                    document.getElementById('stopCaptureBtn').disabled = true;
-                }
-            })
-            .catch(error => {
-                statusElem.textContent = `Error: ${error.message}`;
-                statusElem.className = 'capture-status error';
+                    document.getElementById('stopCaptureBtn').disabled  = true;
+                }, 800);
+            } else {
+                statusEl.className = 'capture-status error visible';
+                statusEl.textContent = 'Error: ' + data.error;
                 document.getElementById('startCaptureBtn').disabled = false;
-                document.getElementById('stopCaptureBtn').disabled = true;
-            });
-        }
-        
-        // Close the modal if clicked outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('captureModal');
-            if (event.target == modal) {
-                handleModalClose();
+                document.getElementById('stopCaptureBtn').disabled  = true;
             }
-        }
-    </script>
+        })
+        .catch(err => {
+            statusEl.className = 'capture-status error visible';
+            statusEl.textContent = 'Error: ' + err.message;
+            document.getElementById('startCaptureBtn').disabled = false;
+            document.getElementById('stopCaptureBtn').disabled  = true;
+        });
+}
+</script>
 </body>
 </html>

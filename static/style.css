@@ -1,525 +1,737 @@
-/* styles.css */
+/* ==========================================================================
+   HyyperWAN  —  Theme-aware stylesheet
+   Themes: dark-red (default), dark-blue, light
+   Applied via data-theme attribute on <html>
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. CSS Custom Properties — Dark Red (default)
+   -------------------------------------------------------------------------- */
+:root {
+    --bg-base:        #0c0c0c;
+    --bg-surface:     #161616;
+    --bg-elevated:    #1f1f1f;
+    --bg-row:         #1a1a1a;
+    --bg-row-hover:   #222222;
+    --bg-input:       #111111;
+    --bg-header:      #101010;
+
+    --text-primary:   #e2e2e2;
+    --text-secondary: #9a9a9a;
+    --text-muted:     #5a5a5a;
+
+    --accent:         #c0392b;
+    --accent-light:   #e74c3c;
+    --accent-dim:     #7d1f14;
+    --accent-glow:    rgba(192, 57, 43, 0.18);
+
+    --border:         #272727;
+    --border-strong:  #3a3a3a;
+
+    --success-bg:     #0d2a0d;
+    --success-text:   #5dd85d;
+    --success-border: #27ae60;
+
+    --error-bg:       #2a0a0a;
+    --error-text:     #f87171;
+    --error-border:   #c0392b;
+
+    --info-bg:        #0a1a2e;
+    --info-text:      #7ec8f0;
+    --info-border:    #2980b9;
+
+    --warning-bg:     #2a1e00;
+    --warning-text:   #fbbf24;
+    --warning-border: #d97706;
+
+    --nav-bg:         #090909;
+    --nav-border:     #c0392b;
+    --nav-height:     52px;
+
+    --btn-primary-bg:    #c0392b;
+    --btn-primary-hover: #e74c3c;
+    --btn-secondary-bg:  #2a2a2a;
+    --btn-secondary-hover:#363636;
+    --btn-success-bg:    #145214;
+    --btn-success-hover: #1a6b1a;
+    --btn-info-bg:       #0e2d52;
+    --btn-info-hover:    #1a4a80;
+    --btn-danger-bg:     #5c1010;
+    --btn-danger-hover:  #7d1f14;
+    --btn-disabled-bg:   #2a2a2a;
+    --btn-disabled-text: #555555;
+
+    --radius:    5px;
+    --radius-lg: 8px;
+    --shadow:    0 2px 10px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.65);
+    --transition: 0.16s ease;
+
+    --badge-zero-bg:   #1e1e1e;
+    --badge-zero-text: #555;
+    --badge-active-bg: rgba(192, 57, 43, 0.18);
+    --badge-active-text: #e74c3c;
+    --badge-bw-bg:     rgba(41, 128, 185, 0.18);
+    --badge-bw-text:   #5dade2;
+}
+
+/* --------------------------------------------------------------------------
+   2. Dark Blue theme overrides
+   -------------------------------------------------------------------------- */
+[data-theme="dark-blue"] {
+    --accent:         #2563eb;
+    --accent-light:   #3b82f6;
+    --accent-dim:     #1e3a8a;
+    --accent-glow:    rgba(37, 99, 235, 0.18);
+
+    --nav-border:     #2563eb;
+
+    --btn-primary-bg:    #2563eb;
+    --btn-primary-hover: #3b82f6;
+    --btn-danger-bg:     #1e3a8a;
+    --btn-danger-hover:  #2563eb;
+
+    --badge-active-bg:   rgba(37, 99, 235, 0.18);
+    --badge-active-text: #60a5fa;
+}
+
+/* --------------------------------------------------------------------------
+   3. Light theme overrides
+   -------------------------------------------------------------------------- */
+[data-theme="light"] {
+    --bg-base:        #f0f2f5;
+    --bg-surface:     #ffffff;
+    --bg-elevated:    #e8ebf0;
+    --bg-row:         #ffffff;
+    --bg-row-hover:   #f5f7fa;
+    --bg-input:       #ffffff;
+    --bg-header:      #eaedf1;
+
+    --text-primary:   #1a1a1a;
+    --text-secondary: #555555;
+    --text-muted:     #888888;
+
+    --accent:         #c0392b;
+    --accent-light:   #e74c3c;
+    --accent-dim:     #fde8e6;
+    --accent-glow:    rgba(192, 57, 43, 0.1);
+
+    --border:         #d8dde6;
+    --border-strong:  #b0b8c4;
+
+    --success-bg:     #f0fdf4;
+    --success-text:   #166534;
+    --success-border: #22c55e;
+
+    --error-bg:       #fef2f2;
+    --error-text:     #991b1b;
+    --error-border:   #ef4444;
+
+    --info-bg:        #eff6ff;
+    --info-text:      #1e3a8a;
+    --info-border:    #3b82f6;
+
+    --warning-bg:     #fffbeb;
+    --warning-text:   #92400e;
+    --warning-border: #f59e0b;
+
+    --nav-bg:         #1a1a1a;
+    --nav-border:     #c0392b;
+
+    --btn-secondary-bg:   #e5e7eb;
+    --btn-secondary-hover:#d1d5db;
+    --btn-disabled-bg:    #d1d5db;
+    --btn-disabled-text:  #9ca3af;
+
+    --shadow:    0 2px 10px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.15);
+
+    --badge-zero-bg:     #f0f2f5;
+    --badge-zero-text:   #aaa;
+    --badge-active-bg:   rgba(192, 57, 43, 0.1);
+    --badge-active-text: #c0392b;
+    --badge-bw-bg:       rgba(37, 99, 235, 0.1);
+    --badge-bw-text:     #1d4ed8;
+}
+
+/* --------------------------------------------------------------------------
+   4. Reset & Base
+   -------------------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 15px; }
+
 body {
-    background-color: #1e1e1e;
-    color: #c7c7c7;
-    font-family: 'Roboto', sans-serif; /* Modern font */
-    margin: 0;
-    padding: 0;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'Inter', 'Segoe UI', 'Roboto', system-ui, sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+    transition: background-color var(--transition), color var(--transition);
 }
 
-.container {
-    width: 100%;
-    max-width: 1140px; /* Limit the maximum width */
-    margin: 0 auto; /* Center the container */
-    padding: 20px;
-    background-color: #2e2e2e;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+a { color: var(--accent-light); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --------------------------------------------------------------------------
+   5. Navigation Bar
+   -------------------------------------------------------------------------- */
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    height: var(--nav-height);
+    background: var(--nav-bg);
+    border-bottom: 2px solid var(--nav-border);
+    padding: 0 20px;
+    gap: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
 }
 
-h1 {
-    text-align: center;
-    color: #f0f0f0;
+.navbar-brand {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--accent-light);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.navbar-links {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
+.nav-link {
+    padding: 5px 14px;
+    border-radius: var(--radius);
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    font-weight: 500;
+    transition: color var(--transition), background var(--transition);
+    text-decoration: none;
+}
+.nav-link:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); text-decoration: none; }
+.nav-link.active { color: var(--accent-light); background: var(--accent-glow); }
+
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.hostname-badge {
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-left: 3px solid var(--nav-border);
+    padding: 3px 10px;
+    border-radius: var(--radius);
+    white-space: nowrap;
+}
+
+.theme-btn {
+    padding: 4px 12px;
+    font-size: 0.78rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+}
+.theme-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+
+/* --------------------------------------------------------------------------
+   6. Main Content Area
+   -------------------------------------------------------------------------- */
+.main-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+}
+
+/* --------------------------------------------------------------------------
+   7. Flash Messages
+   -------------------------------------------------------------------------- */
+.flash-messages { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
+
+.flash-message {
+    padding: 9px 14px;
+    border-radius: var(--radius);
+    font-size: 0.88rem;
+    font-weight: 500;
+    border-left: 4px solid transparent;
+}
+.flash-message.error   { background: var(--error-bg);   color: var(--error-text);   border-color: var(--error-border); }
+.flash-message.success { background: var(--success-bg); color: var(--success-text); border-color: var(--success-border); }
+.flash-message.info    { background: var(--info-bg);    color: var(--info-text);    border-color: var(--info-border); }
+.flash-message.warning { background: var(--warning-bg); color: var(--warning-text); border-color: var(--warning-border); }
+
+/* --------------------------------------------------------------------------
+   8. Warning Banners
+   -------------------------------------------------------------------------- */
+.critical-warning {
+    background: var(--error-bg);
+    color: var(--error-text);
+    border: 1px solid var(--error-border);
+    border-left: 5px solid var(--error-border);
+    border-radius: var(--radius-lg);
+    padding: 14px 18px;
+    margin-bottom: 20px;
+}
+.critical-warning strong { display: block; font-size: 1.05em; margin-bottom: 6px; }
+.critical-warning p { margin-top: 6px; font-size: 0.9em; }
+
+.temp-route-warning {
+    background: var(--warning-bg);
+    color: var(--warning-text);
+    border: 1px solid var(--warning-border);
+    border-left: 5px solid var(--warning-border);
+    border-radius: var(--radius-lg);
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    font-size: 0.88rem;
+}
+
+/* --------------------------------------------------------------------------
+   9. Section headings
+   -------------------------------------------------------------------------- */
+.section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.section-sub {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   10. Interface / Route Tables
+   -------------------------------------------------------------------------- */
+.table-wrap {
+    overflow-x: auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
 }
 
 table {
-    border-collapse: separate; /* Separate borders for modern look */
-    border-spacing: 0 8px; /* Add spacing between rows */
     width: 100%;
-    margin-bottom: 20px;
+    border-collapse: collapse;
+    font-size: 0.88rem;
 }
 
-table th, table td {
-    border: none; /* Remove borders */
-    padding: 12px 15px;
+thead tr {
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-strong);
+}
+
+th {
+    padding: 10px 12px;
     text-align: left;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    white-space: nowrap;
 }
 
-table th {
-    background-color: #3e3e3e;
-    color: #f0f0f0;
-    font-weight: bold;
+tbody tr {
+    background: var(--bg-row);
+    border-bottom: 1px solid var(--border);
+    transition: background var(--transition);
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg-row-hover); }
+
+td {
+    padding: 10px 12px;
+    vertical-align: top;
 }
 
-table tr {
-    background-color: #2e2e2e;
-    border-radius: 8px; /* Rounded corners for rows */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+/* --------------------------------------------------------------------------
+   11. Interface name cell
+   -------------------------------------------------------------------------- */
+.iface-cell { min-width: 160px; }
+
+.iface-name {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
 }
 
-table tr:hover {
-    background-color: #383838; /* Subtle hover effect */
-}
-
-form {
-    margin-bottom: 20px;
-}
-
-label {
-    display: block;
-    margin-bottom: 5px;
-    color: #f0f0f0;
-}
-
-input[type="text"], select {
-    width: 125px;
-    padding: 10px;
-    margin-bottom: 10px;
-    border: 1px solid #444;
-    border-radius: 4px;
-    background-color: #1e1e1e;
-    color: #c7c7c7;
-}
-
-button {
-    width: 100px;
-    padding: 10px;
-    border: none;
-    border-radius: 4px;
-    background-color: #8b0000; /* Darker red */
-    color: #fff;
-    font-size: 16px;
-    cursor: pointer;
-    margin-bottom: 10px; /* Add spacing below each button */
-}
-
-button:hover {
-    background-color: #a00000; /* Slightly lighter on hover */
-}
-
-button + br + button {
-    margin-top: 10px; /* Add vertical spacing between buttons */
-}
-
-td form {
-    display: inline-block; /* Ensure forms are displayed inline */
-    margin-right: 10px; /* Add spacing between forms */
-}
-
-td form button {
-    margin-bottom: 0; /* Remove extra margin to align buttons */
-}
-
-/* Flash messages styles */
-.flash-messages {
-    margin: 15px 0;
-    padding: 10px;
-}
-
-.flash-message {
-    padding: 10px 15px;
-    margin-bottom: 10px;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    font-weight: 500;
-}
-
-.flash-message.error {
-    background-color: #8b0000;
-    color: #fff;
-    border-left: 5px solid #ff0000;
-}
-
-.flash-message.success {
-    background-color: #005f00;
-    color: #fff;
-    border-left: 5px solid #00b300;
-}
-
-.flash-message.info {
-    background-color: #00468b;
-    color: #fff;
-    border-left: 5px solid #0078ff;
-}
-
-/* Reset All button styles */
-.reset-all-container {
-    text-align: center;
-    margin: 30px 0;
-    padding: 15px;
-}
-
-.reset-all-button {
-    width: 125px;
-    padding: 12px 20px;
-    background-color: #8b0000; /* MODIFIED: Matched to Apply/Remove buttons */
-    color: white;
-    font-size: 18px;
-    font-weight: bold;
-    border: none; /* MODIFIED: Matched to Apply/Remove buttons */
-    border-radius: 6px;
-    cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    transition: background-color 0.3s, transform 0.2s;
-}
-
-.reset-all-button:hover {
-    background-color: #a00000; /* MODIFIED: Matched to Apply/Remove buttons hover */
-    transform: translateY(-2px);
-}
-
-.reset-all-button:active {
-    transform: translateY(1px);
-}
-
-/* Interface alias styling */
-.interface-name-display {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    margin-bottom: 5px;
-}
-
-.interface-alias {
-    color: #a5a5a5;
+.iface-alias {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
     font-style: italic;
-    margin-top: 2px;
+    margin-top: 1px;
 }
 
-.alias-edit-button {
-    width: auto;
-    padding: 3px 8px;
+.alias-edit-btn {
+    display: inline-block;
     margin-top: 5px;
-    font-size: 12px;
-    background-color: #444444;
-    border: 1px solid #555555;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition);
 }
-
-.alias-edit-button:hover {
-    background-color: #555555;
-}
+.alias-edit-btn:hover { border-color: var(--accent); color: var(--text-primary); }
 
 .alias-edit-form {
-    margin-top: 5px;
-    padding: 5px;
-    background-color: #2a2a2a;
-    border-radius: 4px;
+    margin-top: 6px;
+    padding: 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    align-items: center;
 }
-
-.alias-edit-form input {
-    width: 150px;
-    margin-right: 5px;
+.alias-edit-form input[type="text"] {
+    flex: 1;
+    min-width: 100px;
+    padding: 4px 7px;
+    font-size: 0.82rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-input);
+    color: var(--text-primary);
 }
+.alias-edit-form input[type="text"]:focus { outline: none; border-color: var(--accent); }
 
-.alias-edit-form button {
-    width: auto;
-    padding: 3px 8px;
-    margin-right: 5px;
-    font-size: 12px;
-}
+/* --------------------------------------------------------------------------
+   12. Status badges (latency/loss/jitter/bandwidth display cells)
+   -------------------------------------------------------------------------- */
+.status-cell { text-align: center; vertical-align: middle; }
 
-/* Capture Button */
-.capture-button {
-    background-color: #0055a5;
-    color: white;
-    padding: 6px 12px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.3s;
+.badge {
     display: inline-block;
-    width: auto; /* Allow button to size based on content */
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+}
+.badge-zero   { background: var(--badge-zero-bg);   color: var(--badge-zero-text); }
+.badge-active { background: var(--badge-active-bg); color: var(--badge-active-text); }
+.badge-bw     { background: var(--badge-bw-bg);     color: var(--badge-bw-text); }
+
+/* --------------------------------------------------------------------------
+   13. Actions cell (apply form + remove)
+   -------------------------------------------------------------------------- */
+.actions-cell { min-width: 320px; vertical-align: top; }
+
+.apply-form { display: flex; flex-direction: column; gap: 5px; }
+
+.form-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+
+.apply-form input[type="text"] {
+    width: 78px;
+    padding: 5px 7px;
+    font-size: 0.8rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    transition: border-color var(--transition);
+}
+.apply-form input[type="text"]:focus { outline: none; border-color: var(--accent); }
+.apply-form input[type="text"]::placeholder { color: var(--text-muted); font-size: 0.75rem; }
+
+.bw-group { display: flex; gap: 3px; align-items: center; }
+.bw-input { width: 62px !important; }
+
+.bw-unit {
+    padding: 5px 4px;
+    font-size: 0.78rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+.bw-unit:focus { outline: none; border-color: var(--accent); }
+
+/* --------------------------------------------------------------------------
+   14. Buttons — base and variants
+   -------------------------------------------------------------------------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    transition: background var(--transition), transform 0.1s ease;
+    white-space: nowrap;
+    text-decoration: none;
+    line-height: 1.4;
+}
+.btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn:active:not(:disabled) { transform: translateY(0); }
+
+.btn:disabled {
+    background: var(--btn-disabled-bg) !important;
+    color: var(--btn-disabled-text) !important;
+    cursor: not-allowed;
+    transform: none !important;
 }
 
-.capture-button:hover {
-    background-color: #003d7a;
+.btn-primary   { background: var(--btn-primary-bg);   color: #fff; }
+.btn-primary:hover:not(:disabled)   { background: var(--btn-primary-hover); }
+
+.btn-secondary { background: var(--btn-secondary-bg); color: var(--text-secondary); }
+.btn-secondary:hover:not(:disabled) { background: var(--btn-secondary-hover); color: var(--text-primary); }
+
+.btn-success   { background: var(--btn-success-bg);   color: #fff; }
+.btn-success:hover:not(:disabled)   { background: var(--btn-success-hover); }
+
+.btn-info      { background: var(--btn-info-bg);      color: #fff; }
+.btn-info:hover:not(:disabled)      { background: var(--btn-info-hover); }
+
+.btn-danger    { background: var(--btn-danger-bg);    color: #fff; }
+.btn-danger:hover:not(:disabled)    { background: var(--btn-danger-hover); }
+
+.btn-sm { padding: 3px 9px; font-size: 0.75rem; }
+.btn-lg { padding: 9px 22px; font-size: 0.95rem; }
+
+/* alias form save/cancel buttons */
+.alias-save-btn   { background: var(--btn-primary-bg); color: #fff; }
+.alias-save-btn:hover { background: var(--btn-primary-hover); }
+.alias-cancel-btn { background: var(--btn-secondary-bg); color: var(--text-secondary); }
+.alias-cancel-btn:hover { background: var(--btn-secondary-hover); color: var(--text-primary); }
+
+/* --------------------------------------------------------------------------
+   15. Tools cell (capture / NAT)
+   -------------------------------------------------------------------------- */
+.tools-cell { min-width: 110px; vertical-align: top; }
+
+.tools-stack { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
+
+.nat-on  { background: var(--btn-info-bg) !important; }
+.nat-on:hover:not(:disabled)  { background: var(--btn-info-hover) !important; }
+.nat-off { background: var(--btn-danger-bg) !important; }
+.nat-off:hover:not(:disabled) { background: var(--btn-danger-hover) !important; }
+
+.tool-unavailable {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-style: italic;
 }
 
-/* Modal Styles */
+/* --------------------------------------------------------------------------
+   16. Reset All
+   -------------------------------------------------------------------------- */
+.reset-container {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0 8px;
+}
+
+/* --------------------------------------------------------------------------
+   17. Packet Capture Modal
+   -------------------------------------------------------------------------- */
 .modal {
     display: none;
     position: fixed;
+    inset: 0;
     z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(3px);
+    align-items: center;
+    justify-content: center;
 }
+.modal.open { display: flex; }
 
 .modal-content {
-    background-color: #2a2a2a;
-    margin: 10% auto;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-    width: 60%;
-    max-width: 600px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 24px 28px;
+    width: min(560px, 95vw);
     position: relative;
-    color: #e0e0e0;
+    color: var(--text-primary);
 }
 
-.close-button {
+.modal-close {
     position: absolute;
-    right: 15px;
     top: 10px;
-    font-size: 28px;
-    font-weight: bold;
-    color: #888;
+    right: 14px;
+    font-size: 1.4rem;
+    color: var(--text-muted);
+    background: none;
+    border: none;
     cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    transition: color var(--transition);
 }
+.modal-close:hover { color: var(--text-primary); }
 
-.close-button:hover {
-    color: #ddd;
-}
+.modal-title { font-size: 1rem; font-weight: 700; margin-bottom: 18px; color: var(--text-primary); }
 
-/* Form Styles */
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 500;
-}
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; }
 
 .form-group input[type="text"] {
     width: 100%;
-    padding: 8px;
-    border-radius: 4px;
-    background-color: #3a3a3a;
-    color: white;
-    border: 1px solid #555;
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.85rem;
 }
-
-.radio-label {
-    display: inline-flex;
-    align-items: center;
-    margin-right: 15px;
-}
-
-.radio-label input {
-    margin-right: 5px;
-}
-
-.form-actions {
-    margin-top: 20px;
-    display: flex;
-    gap: 10px;
-}
-
-.start-button {
-    background-color: #005500;
-    color: white;
-    padding: 8px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.stop-button {
-    background-color: #800000;
-    color: white;
-    padding: 8px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.start-button:hover:not(:disabled) {
-    background-color: #007700;
-}
-
-.stop-button:hover:not(:disabled) {
-    background-color: #a00000;
-}
-
-button:disabled {
-    background-color: #555;
-    cursor: not-allowed;
-}
-
-.capture-status {
-    margin-top: 15px;
-    padding: 10px;
-    border-radius: 4px;
-    text-align: center;
-}
-
-.capture-status.info {
-    background-color: #00468b;
-    color: #fff;
-}
-
-.capture-status.success {
-    background-color: #005f00;
-    color: #fff;
-}
-
-.capture-status.error {
-    background-color: #8b0000;
-    color: #fff;
-}
+.form-group input[type="text"]:focus { outline: none; border-color: var(--accent); }
 
 .filter-logic {
-    margin-top: 5px;
-    font-size: 0.9em;
     display: flex;
     align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
 }
+.filter-logic label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text-secondary); }
+.filter-logic input[type="radio"] { accent-color: var(--accent); }
 
-.filter-logic span {
-    margin-right: 10px;
-    font-style: italic;
-    color: #aaa;
-}
+.form-actions { display: flex; gap: 8px; margin-top: 18px; }
 
-.hostname-display {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    padding: 5px 10px;
-    background-color: rgba(46, 46, 46, 0.8);
-    border-radius: 4px;
-    font-size: 0.9em;
-    color: #aaa;
-    font-family: monospace;
-    border-left: 3px solid #8b0000;
-}
-
-.capture-unavailable-message {
-    display: inline-block;
-    font-size: 0.8em;
-    color: #888;
-    font-style: italic;
-    margin-top: 10px;
-}
-
-/* Commenting out the old .tools-cell rule as it's superseded by more specific td.tools-cell */
-/*
-.tools-cell {
-    vertical-align: top;
-    padding-top: 22px; 
-}
-*/
-
-/* Action and Tools column styling */
-/* Splitting the original "td.actions-cell, td.tools-cell" for individual control */
-
-td.actions-cell {
-    vertical-align: top; /* MODIFIED: Align content to the top */
-    padding: 10px;          /* Base padding */
-    padding-top: 40px;      /* MODIFIED: Increased top padding to push content down */
-    /* Optional: If Actions column also needs width constraint: */
-    /* width: 380px; */ /* Adjust as needed */
-}
-
-/* New rule for the Tools column header */
-th.tools-header {
-    width: 130px;   /* Adjust width as needed to bring column left */
-    text-align: left; /* Ensure header text is left-aligned */
-}
-
-/* Styling for the Tools column cells */
-td.tools-cell {
-    vertical-align: top; /* MODIFIED: Align content to the top */
-    padding: 10px;          /* Base padding */
-    padding-top: 18px;      /* MODIFIED: Increased top padding for consistency */
-    width: 130px;           /* Match header width, adjust as needed */
-}
-
-/* Style for buttons in both columns */
-.actions-cell button, .tools-cell button {
-    padding: 6px 12px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-top: 5px;
-}
-
-.tools-cell .capture-button {
-    background-color: #0055a5; /* Default blue, will be overridden by NAT status classes */
-    margin-top: 0; /* Let td.tools-cell padding-top handle the initial vertical spacing */
-    display: block; /* Make it block level for consistent positioning */
-}
-
-/* Add this new selector to fix the hover effect */
-.tools-cell .capture-button:hover {
-    background-color: #003d7a;
-}
-
-/* Styles for NAT button state within tools-cell */
-.tools-cell .capture-button.btn-danger {
-    background-color: #8b0000; /* Red for NAT OFF */
-}
-
-.tools-cell .capture-button.btn-danger:hover {
-    background-color: #a00000; /* Lighter red on hover */
-}
-
-.tools-cell .capture-button.btn-success {
-    background-color: #0055a5; /* Blue for NAT ON */
-}
-
-.tools-cell .capture-button.btn-success:hover {
-    background-color: #003d7a; /* Darker blue on hover */
-}
-
-.tools-cell .capture-unavailable-message {
-    display: block;
-    margin-top: 22px;
-    font-size: 0.8em;
-    color: #888;
-    font-style: italic;
-}
-
-.utility-unavailable-message {
-    display: block;
-    font-size: 0.8em;
-    color: #888;
-    font-style: italic;
-    margin-top: 22px;
-}
-
-/* Critical warning for missing dependencies */
-.critical-warning {
-    background-color: #8b0000;
-    color: #fff;
-    padding: 15px;
-    margin: 20px 0;
-    border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-    border-left: 6px solid #ff0000;
-}
-
-.critical-warning strong {
-    font-size: 1.2em;
-    font-weight: bold;
-    display: block;
-    margin-bottom: 10px;
-}
-
-.critical-warning p {
-    margin: 10px 0;
-}
-
-.installation-note {
-    background-color: rgba(0, 0, 0, 0.2);
-    padding: 10px;
-    border-radius: 4px;
-    font-family: monospace;
-    margin-top: 10px;
-}
-
-.installation-note code {
-    background-color: #000;
-    padding: 3px 5px;
-    border-radius: 3px;
-}
-
-.no-interfaces-message {
-    background-color: #2e2e2e;
-    border-radius: 8px;
-    padding: 20px;
+.capture-status {
+    margin-top: 14px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 0.82rem;
     text-align: center;
-    margin: 30px auto;
-    max-width: 600px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    display: none;
+}
+.capture-status.visible { display: block; }
+.capture-status.info    { background: var(--info-bg);    color: var(--info-text); }
+.capture-status.success { background: var(--success-bg); color: var(--success-text); }
+.capture-status.error   { background: var(--error-bg);   color: var(--error-text); }
+
+/* --------------------------------------------------------------------------
+   18. Route Table specifics
+   -------------------------------------------------------------------------- */
+.tab-bar { display: flex; gap: 2px; margin-bottom: 14px; }
+
+.tab-btn {
+    padding: 6px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: var(--radius) var(--radius) 0 0;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+.tab-btn.active { background: var(--bg-row); color: var(--accent-light); border-color: var(--border-strong); }
+.tab-btn:hover:not(.active) { color: var(--text-primary); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.add-route-form {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+}
+.add-route-form h3 { font-size: 0.88rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; }
+.add-route-inputs { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+
+.field-group { display: flex; flex-direction: column; gap: 3px; }
+.field-group label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.field-group input[type="text"],
+.field-group select {
+    padding: 6px 9px;
+    font-size: 0.83rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    min-width: 130px;
+}
+.field-group input[type="text"]:focus,
+.field-group select:focus { outline: none; border-color: var(--accent); }
+
+.route-proto  { color: var(--text-muted); font-size: 0.78rem; }
+.route-metric { font-family: monospace; font-size: 0.82rem; }
+
+.del-route-btn { padding: 3px 9px; font-size: 0.76rem; }
+
+/* --------------------------------------------------------------------------
+   19. Misc utilities
+   -------------------------------------------------------------------------- */
+.mono { font-family: 'Courier New', monospace; }
+
+.ip-addr {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
 }
 
-.no-interfaces-message p {
-    margin: 10px 0;
-    font-size: 1.1em;
+.no-data {
+    padding: 30px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-style: italic;
+}
+
+code {
+    background: var(--bg-elevated);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+    color: var(--accent-light);
+}
+
+/* --------------------------------------------------------------------------
+   20. Responsive
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .navbar-brand { font-size: 1.05rem; }
+    .hostname-badge { display: none; }
+    .main-content { padding: 12px 8px 30px; }
+    th, td { padding: 8px 8px; }
+    .apply-form input[type="text"] { width: 68px; }
+}
+
+@media (max-width: 480px) {
+    .navbar { padding: 0 10px; gap: 8px; }
+    .nav-link { padding: 4px 8px; }
+    .theme-btn { font-size: 0.7rem; padding: 3px 7px; }
 }
