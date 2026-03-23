@@ -76,27 +76,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   2. Dark Blue theme overrides
-   -------------------------------------------------------------------------- */
-[data-theme="dark-blue"] {
-    --accent:         #2563eb;
-    --accent-light:   #3b82f6;
-    --accent-dim:     #1e3a8a;
-    --accent-glow:    rgba(37, 99, 235, 0.18);
-
-    --nav-border:     #2563eb;
-
-    --btn-primary-bg:    #2563eb;
-    --btn-primary-hover: #3b82f6;
-    --btn-danger-bg:     #1e3a8a;
-    --btn-danger-hover:  #2563eb;
-
-    --badge-active-bg:   rgba(37, 99, 235, 0.18);
-    --badge-active-text: #60a5fa;
-}
-
-/* --------------------------------------------------------------------------
-   3. Light theme overrides
+   2. Light theme overrides
    -------------------------------------------------------------------------- */
 [data-theme="light"] {
     --bg-base:        #f0f2f5;
