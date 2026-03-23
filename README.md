@@ -8,14 +8,20 @@ HyyperWAN is a web application for emulating WAN conditions on Linux systems. It
 
 ## What's New
 
+- **Admin page (`/admin`)** — Centralized configuration with optional password protection:
+  - Per-interface controls: disable (grey out) latency, jitter, loss, bandwidth, Capture, and NAT independently
+  - Global controls: hide Tools column, disable route/IP/MTU modifications, hide Admin navbar link
+  - Interface aliases managed here instead of inline on the main table
+  - Settings persisted to `data/admin_config.json` — mount a volume for persistence across container restarts
 - **Bandwidth limiting** — Set a bandwidth cap per interface (kbit/mbit/gbit) in addition to or instead of latency/jitter/loss. Uses HTB+netem stacking when combining impairments.
 - **Route table management** — View, add, and remove IPv4 and IPv6 routes on the host via a dedicated Routes page (uses `ip route`; changes are temporary).
 - **Interface detail page** — Click the `↗` icon next to any interface to open a dedicated page with:
   - Live bandwidth graph (RX/TX bytes/sec, 60-second rolling window, 1s polling)
   - IPv4/IPv6 address management (add/remove via `ip addr`)
   - MTU configuration (`ip link set mtu`)
+  - TC impairments panel with Capture and NAT buttons
 - **Simultaneous HTTP + HTTPS** — A single image/process can now listen on both HTTP and HTTPS at the same time, controlled entirely by environment variables. The separate `hyyperwan-http` and `hyyperwan-https` images have been replaced by a single `hyyperwan:latest`.
-- **UI overhaul** — Sticky navbar, theme switcher (Dark Red / Dark Blue / Light), responsive layout, coloured status badges, and theme preference persisted in localStorage.
+- **UI overhaul** — Sticky navbar, theme switcher (Dark / Light), responsive layout, coloured status badges, and theme preference persisted in localStorage.
 - **Consolidated Dockerfile** — Single `docker/Dockerfile` replaces the previous `Dockerfile.http` and `Dockerfile.https`.
 
 ---
@@ -26,11 +32,12 @@ HyyperWAN is a web application for emulating WAN conditions on Linux systems. It
 - Bandwidth limiting per interface
 - Enable/disable Source NAT (Masquerade) per interface
 - Interface aliases for easier identification (persistent across restarts)
-- Per-interface detail page with live bandwidth graph, IP address management, and MTU setting
+- Per-interface detail page with live bandwidth graph, IP address management, MTU setting, and Capture/NAT buttons
 - Host route table view with add/remove (IPv4 and IPv6)
 - Packet capture via tcpdump with host/network/port filters and PCAP download
 - HTTP, HTTPS, or both simultaneously — controlled via environment variables
-- Dark Red, Dark Blue, and Light UI themes (persisted in browser localStorage)
+- Dark and Light UI themes (persisted in browser localStorage)
+- Admin page (`/admin`) with optional password protection for centralized configuration and per-interface granular controls
 
 ---
 
@@ -284,10 +291,18 @@ All configuration is done through environment variables — in the `.env` file f
 
 Navigate to `/admin` in your browser to configure:
 
-- **Do not display interfaces** — choose which interfaces are hidden from the main table
-- **Hide Tools column** — globally hide the Capture / NAT column
+**Global settings:**
+- **Do not display interfaces** — hide specific interfaces from the main table (comma-separated)
+- **Hide Tools column** — globally hide the Capture / NAT column for all interfaces
 - **Default theme** — set the default theme for users with no localStorage preference
-- **Per-interface controls** — disable (grey out) individual impairment fields (latency, jitter, loss, bandwidth) or tool buttons (Capture, NAT) on a per-interface basis
+- **Disable route modifications** — routes table becomes read-only (Add/Delete hidden)
+- **Disable IP address changes** — address table becomes read-only (Add/Remove hidden)
+- **Disable MTU changes** — MTU field becomes read-only
+- **Hide Admin link from navbar** — removes the Admin link from all navbars; the page remains accessible at `/admin`. A reminder with the full URL is shown when first enabled.
+
+**Per-interface controls** (visible but greyed out when disabled):
+- Disable Capture, NAT, Latency, Jitter, Loss, or Bandwidth independently per interface
+- Set interface aliases
 
 **Persistent settings (Docker):** Admin settings are saved to `ADMIN_CONFIG_PATH` (`/app/data/admin_config.json` by default). Without a volume mount, settings are lost when the container is recreated. To persist them:
 
@@ -325,6 +340,7 @@ Click the **`↗`** icon next to any interface name to open the interface detail
 
 ### Interface Detail Page
 
+- **TC Impairments** — view current latency/jitter/loss/bandwidth, apply or remove impairments, with Capture and NAT buttons alongside
 - **IP Addresses** — view, add, and remove IPv4/IPv6 addresses (`ip addr add/del`)
 - **MTU** — view and set the MTU (`ip link set mtu`)
 - **Bandwidth Monitor** — live scrolling graph of RX/TX bytes/sec (1-second polling, 60-second window)
@@ -343,7 +359,7 @@ Click **Routes** in the navigation bar to view and manage the host's routing tab
 
 ### Interface Aliases
 
-Click **Add alias** / **Edit alias** next to any interface name to assign a friendly label. Aliases are stored persistently in `interface_aliases.json` and survive application restarts.
+Aliases are set via the **Admin page** (`/admin`) in the Per-Interface Controls table. They are stored persistently in `interface_aliases.json` and survive application restarts. The alias is displayed beneath the interface name on the main table and interface detail page.
 
 ### Packet Capture
 
