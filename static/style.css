@@ -48,14 +48,16 @@
     --nav-border:     #c0392b;
     --nav-height:     52px;
 
-    --btn-primary-bg:    #c0392b;
-    --btn-primary-hover: #e74c3c;
+    --btn-primary-bg:    #961e14;
+    --btn-primary-hover: #b02418;
     --btn-secondary-bg:  #2a2a2a;
     --btn-secondary-hover:#363636;
     --btn-success-bg:    #145214;
     --btn-success-hover: #1a6b1a;
-    --btn-info-bg:       #0e2d52;
+    --btn-info-bg:       #0f3460;
     --btn-info-hover:    #1a4a80;
+    --btn-blue:          #0f3460;
+    --btn-blue-hover:    #1a4a80;
     --btn-danger-bg:     #5c1010;
     --btn-danger-hover:  #7d1f14;
     --btn-disabled-bg:   #2a2a2a;
@@ -563,12 +565,16 @@ td {
  * NAT ON  = green  (masquerade active)
  * NAT OFF = red    (masquerade inactive)
  * Capture = blue
+ * Dark theme: slightly darker shades
+ * Light theme: brighter shades for contrast on white backgrounds
  */
+
+/* Dark theme (default) */
 .btn-capture {
-    background: #1565c0 !important;
+    background: #0f3460 !important;
     color: #fff !important;
 }
-.btn-capture:hover:not(:disabled) { background: #1e88e5 !important; }
+.btn-capture:hover:not(:disabled) { background: #1a4a80 !important; }
 
 .nat-on {
     background: #15803d !important;
@@ -577,16 +583,32 @@ td {
 .nat-on:hover:not(:disabled) { background: #16a34a !important; }
 
 .nat-off {
-    background: #c0392b !important;
+    background: #961e14 !important;
     color: #fff !important;
 }
-.nat-off:hover:not(:disabled) { background: #e74c3c !important; }
+.nat-off:hover:not(:disabled) { background: #b02418 !important; }
 
 .btn-reset-all {
-    background: #c0392b !important;
+    background: #961e14 !important;
     color: #fff !important;
 }
-.btn-reset-all:hover:not(:disabled) { background: #e74c3c !important; }
+.btn-reset-all:hover:not(:disabled) { background: #b02418 !important; }
+
+/* Light theme overrides — brighter for white backgrounds */
+[data-theme="light"] .btn-capture {
+    background: #1565c0 !important;
+}
+[data-theme="light"] .btn-capture:hover:not(:disabled) { background: #1e88e5 !important; }
+
+[data-theme="light"] .nat-off {
+    background: #c0392b !important;
+}
+[data-theme="light"] .nat-off:hover:not(:disabled) { background: #e74c3c !important; }
+
+[data-theme="light"] .btn-reset-all {
+    background: #c0392b !important;
+}
+[data-theme="light"] .btn-reset-all:hover:not(:disabled) { background: #e74c3c !important; }
 
 .tool-unavailable {
     font-size: 0.72rem;
