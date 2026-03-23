@@ -54,18 +54,6 @@ HyyperWAN is a web application for emulating WAN conditions on Linux systems. It
 
 ### Option 1: Docker — GitHub Container Registry (recommended)
 
-If the host has internet access, `docker run` will pull the image automatically — no separate `docker pull` step needed.
-
-If the host has **no internet access**, you can transfer the image manually from a machine that does:
-```bash
-# On a machine with internet access:
-docker pull ghcr.io/hyyperlite/hyyperwan:latest
-docker save ghcr.io/hyyperlite/hyyperwan:latest | gzip > hyyperwan.tar.gz
-
-# Transfer hyyperwan.tar.gz to the target host, then on that host:
-docker load < hyyperwan.tar.gz
-```
-
 **HTTP only (default — port 8080):**
 ```bash
 docker run -d --name hyyperwan \
