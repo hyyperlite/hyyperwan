@@ -49,6 +49,11 @@ ADMIN_CONFIG_PATH = os.environ.get(
     'ADMIN_CONFIG_PATH',
     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'admin_config.json')
 )
+# Ensure the data directory exists at startup so saves don't block
+try:
+    os.makedirs(os.path.dirname(ADMIN_CONFIG_PATH), exist_ok=True)
+except Exception as _e:
+    logging.warning(f"Could not create admin config directory: {_e}")
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')  # empty = no auth required
 
 def _env_list(var, default=''):
