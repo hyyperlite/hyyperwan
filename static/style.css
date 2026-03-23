@@ -576,6 +576,7 @@ td {
 .tools-cell { min-width: 110px; vertical-align: top; }
 
 .tools-stack { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
+.tools-stack .btn { width: 90px; justify-content: center; }
 
 /*
  * Capture / NAT / Reset All use fixed colors that don't shift with the theme.
