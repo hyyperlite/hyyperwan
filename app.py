@@ -244,6 +244,153 @@ def validate_bandwidth(value):
     return True, f"{num_str}{unit}", None
 
 
+def validate_cidr(value, field_name='CIDR'):
+    """Validate an optional IPv4 CIDR or host (e.g. 10.0.0.0/24 or 192.168.1.1/32).
+    Returns (valid, normalised, error). Empty/None is valid and returns (True, None, None)."""
+    import ipaddress
+    if not value or not value.strip():
+        return True, None, None
+    value = value.strip()
+    try:
+        net = ipaddress.IPv4Network(value, strict=False)
+        return True, str(net), None
+    except ValueError:
+        return False, None, f"{field_name} '{value}' is not a valid IPv4 address or CIDR"
+
+
+def cidr_to_u32_mask(cidr):
+    """Convert a CIDR like '10.0.0.0/24' to (hex_ip, hex_mask) for tc u32 filter."""
+    import ipaddress
+    net = ipaddress.IPv4Network(cidr, strict=False)
+    ip_int = int(net.network_address)
+    mask_int = int(net.netmask)
+    return f'0x{ip_int:08x}', f'0x{mask_int:08x}'
+
+
+def get_qdisc_filter(interface):
+    """Return (src_cidr, dst_cidr) active u32 filters on the interface, or (None, None)."""
+    try:
+        result = subprocess.run(
+            ['sudo', 'tc', 'filter', 'show', 'dev', interface],
+            capture_output=True, text=True
+        )
+        output = result.stdout
+        src, dst = None, None
+        import ipaddress
+        for line in output.splitlines():
+            line = line.strip()
+            # u32 match lines look like: match <hex>/<hex> at <offset>
+            # offset 12 = src IP, offset 16 = dst IP in IPv4 header
+            m_src = re.search(r'match\s+(0x[0-9a-f]+)/(0x[0-9a-f]+)\s+at\s+12\b', line)
+            m_dst = re.search(r'match\s+(0x[0-9a-f]+)/(0x[0-9a-f]+)\s+at\s+16\b', line)
+            if m_src:
+                ip_int  = int(m_src.group(1), 16)
+                mask_int = int(m_src.group(2), 16)
+                prefix = bin(mask_int).count('1')
+                src = f"{ipaddress.IPv4Address(ip_int)}/{prefix}"
+            if m_dst:
+                ip_int  = int(m_dst.group(1), 16)
+                mask_int = int(m_dst.group(2), 16)
+                prefix = bin(mask_int).count('1')
+                dst = f"{ipaddress.IPv4Address(ip_int)}/{prefix}"
+        return src, dst
+    except Exception as e:
+        logging.error(f"Error reading tc filters for {interface}: {e}")
+        return None, None
+
+
+def apply_qdisc_filtered(interface, latency, loss, jitter, src_cidr, dst_cidr):
+    """
+    Apply netem impairments to traffic matching src_cidr and/or dst_cidr only.
+    Uses a PRIO qdisc at root with a u32 filter directing matched traffic to a
+    netem band. Unmatched traffic passes through unimpaired.
+    Bandwidth limiting is not combined with filtered mode.
+    """
+    try:
+        alias = get_interface_alias(interface)
+        display_name = f"{interface} ({alias})" if alias and alias != interface else interface
+
+        has_netem = (latency and latency != '0ms') or (loss and loss != '0%') or (jitter and jitter != '0ms')
+        if not has_netem:
+            flash(f"No impairments specified for {display_name}", "error")
+            return
+
+        # Normalise units
+        if latency and not latency.endswith(('ms', 'us')):
+            latency += 'ms'
+        if jitter and not jitter.endswith(('ms', 'us')):
+            jitter += 'ms'
+        if jitter and jitter != '0ms' and (not latency or latency == '0ms'):
+            latency = '1ms'
+
+        # Tear down existing root
+        subprocess.run(['sudo', 'tc', 'qdisc', 'del', 'dev', interface, 'root'],
+                       capture_output=True, text=True)
+
+        errors = []
+        def run_tc(cmd):
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            log_command(cmd, r.stdout)
+            if r.returncode != 0:
+                errors.append(r.stderr.strip())
+            return r.returncode == 0
+
+        # prio: 2 bands — band 1 (1:1) default passthrough, band 2 (1:2) netem
+        run_tc(['sudo', 'tc', 'qdisc', 'add', 'dev', interface,
+                'root', 'handle', '1:', 'prio', 'bands', '2',
+                'priomap', '0', '0', '0', '0', '0', '0', '0', '0',
+                           '0', '0', '0', '0', '0', '0', '0', '0'])
+
+        # netem on band 2
+        netem_cmd = ['sudo', 'tc', 'qdisc', 'add', 'dev', interface,
+                     'parent', '1:2', 'handle', '20:', 'netem']
+        if latency and latency != '0ms':
+            if jitter and jitter != '0ms':
+                netem_cmd.extend(['delay', latency, jitter])
+            else:
+                netem_cmd.extend(['delay', latency])
+        if loss and loss != '0%':
+            netem_cmd.extend(['loss', loss.replace('%', '')])
+        run_tc(netem_cmd)
+
+        # u32 filter(s) — one filter handles both src+dst match if both given
+        if src_cidr and dst_cidr:
+            src_hex, src_mask = cidr_to_u32_mask(src_cidr)
+            dst_hex, dst_mask = cidr_to_u32_mask(dst_cidr)
+            run_tc(['sudo', 'tc', 'filter', 'add', 'dev', interface,
+                    'parent', '1:', 'protocol', 'ip', 'prio', '1', 'u32',
+                    'match', 'ip', 'src', src_cidr,
+                    'match', 'ip', 'dst', dst_cidr,
+                    'flowid', '1:2'])
+        elif src_cidr:
+            run_tc(['sudo', 'tc', 'filter', 'add', 'dev', interface,
+                    'parent', '1:', 'protocol', 'ip', 'prio', '1', 'u32',
+                    'match', 'ip', 'src', src_cidr,
+                    'flowid', '1:2'])
+        elif dst_cidr:
+            run_tc(['sudo', 'tc', 'filter', 'add', 'dev', interface,
+                    'parent', '1:', 'protocol', 'ip', 'prio', '1', 'u32',
+                    'match', 'ip', 'dst', dst_cidr,
+                    'flowid', '1:2'])
+
+        filter_desc = []
+        if src_cidr:
+            filter_desc.append(f"src {src_cidr}")
+        if dst_cidr:
+            filter_desc.append(f"dst {dst_cidr}")
+        filter_str = ', '.join(filter_desc)
+
+        if errors:
+            flash(f"Error applying filtered conditions to {display_name}: {'; '.join(errors)}", "error")
+            logging.error(f"tc filter errors on {interface}: {errors}")
+        else:
+            flash(f"Network conditions applied to {display_name} (filter: {filter_str})", "success")
+
+    except Exception as e:
+        flash(f"Error applying filtered conditions to {interface}: {str(e)}", "error")
+        logging.error(f"Error in apply_qdisc_filtered for {interface}: {str(e)}")
+
+
 def compute_tbf_burst(bandwidth_str):
     """Calculate an appropriate TBF burst size for a given bandwidth string like '10mbit'."""
     match = re.match(r'^(\d+(?:\.\d+)?)(kbit|mbit|gbit)$', bandwidth_str.lower())
@@ -297,6 +444,7 @@ def list_interfaces():
                     try:
                         # Get current network condition settings
                         latency, loss, jitter, bandwidth = get_qdisc_settings(interface_name)
+                        src_filter, dst_filter = get_qdisc_filter(interface_name)
                         nat_status = get_nat_status(interface_name)
                         interfaces.append({
                             'name': interface_name,
@@ -307,6 +455,8 @@ def list_interfaces():
                             'jitter': jitter,
                             'bandwidth': bandwidth,
                             'nat_status': nat_status,
+                            'src_filter': src_filter,
+                            'dst_filter': dst_filter,
                         })
                     except Exception as e:
                         logging.error(f"Error getting settings for interface {interface_name}: {str(e)}")
@@ -319,6 +469,8 @@ def list_interfaces():
                             'jitter': '0ms',
                             'bandwidth': None,
                             'nat_status': False,
+                            'src_filter': None,
+                            'dst_filter': None,
                         })
         
         except json.JSONDecodeError as e:
@@ -357,6 +509,7 @@ def get_qdisc_settings(interface):
     """
     Return (latency, loss, jitter, bandwidth) for the interface.
     bandwidth is None if no rate limit is set, otherwise a string like '10Mbit'.
+    Works for both simple netem/HTB/TBF and filtered PRIO+netem structures.
     """
     try:
         result = subprocess.run(['sudo', 'tc', 'qdisc', 'show', 'dev', interface], capture_output=True, text=True)
@@ -516,7 +669,7 @@ def remove_degradations(interface):
         )
         log_command(['sudo', 'tc', 'qdisc', 'show', 'dev', interface], check_result.stdout)
 
-        has_custom = any(kw in check_result.stdout for kw in ('netem', 'htb', 'tbf'))
+        has_custom = any(kw in check_result.stdout for kw in ('netem', 'htb', 'tbf', 'prio'))
         if has_custom:
             # Deleting root cascades all child classes and qdiscs
             result = subprocess.run(
@@ -715,17 +868,24 @@ def apply():
         if 'interface' not in request.form:
             flash("No interface selected", "error")
             return redirect(url_for('index'))
-            
-        interface = request.form['interface'].split(' ')[0]  # Extract the interface name
-        
+
+        interface = request.form['interface'].split(' ')[0]
+        redirect_to = request.form.get('redirect_to', 'index')
+
+        def do_redirect():
+            if redirect_to == 'interface_detail':
+                return redirect(url_for('interface_detail', name=interface))
+            return redirect(url_for('index'))
+
         # Get form values
         latency = request.form.get('latency')
         loss = request.form.get('loss')
         jitter = request.form.get('jitter')
         bw_value = request.form.get('bandwidth_value', '').strip()
         bw_unit  = request.form.get('bandwidth_unit', 'mbit').strip()
+        src_filter = request.form.get('src_filter', '').strip()
+        dst_filter = request.form.get('dst_filter', '').strip()
 
-        # Combine bandwidth value + unit
         bandwidth_raw = f"{bw_value}{bw_unit}" if bw_value else None
 
         # Validate inputs
@@ -757,16 +917,36 @@ def apply():
             validation_errors.append(bw_error)
             bandwidth_raw = None
         else:
-            bandwidth_raw = bw_clean  # normalized, e.g. "10mbit"
+            bandwidth_raw = bw_clean
+
+        src_valid, src_clean, src_error = validate_cidr(src_filter, 'Source filter')
+        if not src_valid:
+            validation_errors.append(src_error)
+            src_filter = None
+        else:
+            src_filter = src_clean
+
+        dst_valid, dst_clean, dst_error = validate_cidr(dst_filter, 'Destination filter')
+        if not dst_valid:
+            validation_errors.append(dst_error)
+            dst_filter = None
+        else:
+            dst_filter = dst_clean
 
         if validation_errors:
             for error in validation_errors:
                 flash(error, 'error')
-            return redirect(url_for('index'))
+            return do_redirect()
 
-        apply_qdisc(interface, latency, loss, jitter, bandwidth_raw)
-        
-        return redirect(url_for('index'))
+        # Choose filtered or simple path
+        if src_filter or dst_filter:
+            if bandwidth_raw:
+                flash("Bandwidth limiting is not supported in filtered mode — impairments applied without bandwidth limit.", "warning")
+            apply_qdisc_filtered(interface, latency, loss, jitter, src_filter, dst_filter)
+        else:
+            apply_qdisc(interface, latency, loss, jitter, bandwidth_raw)
+
+        return do_redirect()
     except Exception as e:
         logging.error(f"Error in apply route: {str(e)}")
         flash(f"An unexpected error occurred: {str(e)}", "error")
@@ -779,9 +959,12 @@ def remove():
         if 'interface' not in request.form:
             flash("No interface selected", "error")
             return redirect(url_for('index'))
-            
-        interface = request.form['interface'].split(' ')[0]  # Extract the interface name
+
+        interface = request.form['interface'].split(' ')[0]
+        redirect_to = request.form.get('redirect_to', 'index')
         remove_degradations(interface)
+        if redirect_to == 'interface_detail':
+            return redirect(url_for('interface_detail', name=interface))
         return redirect(url_for('index'))
     except Exception as e:
         logging.error(f"Error in remove route: {str(e)}")
@@ -1406,6 +1589,7 @@ def interface_detail(name):
         stats = read_proc_net_dev(name)
         mtu = get_mtu(name)
         latency, loss, jitter, bandwidth = get_qdisc_settings(name)
+        src_filter, dst_filter = get_qdisc_filter(name)
         tc_available = is_tc_available()
         tcpdump_available = is_tcpdump_available()
         iptables_available = is_iptables_available()
@@ -1424,6 +1608,8 @@ def interface_detail(name):
                                loss=loss,
                                jitter=jitter,
                                bandwidth=bandwidth,
+                               src_filter=src_filter,
+                               dst_filter=dst_filter,
                                tc_available=tc_available,
                                tcpdump_available=tcpdump_available,
                                iptables_available=iptables_available,

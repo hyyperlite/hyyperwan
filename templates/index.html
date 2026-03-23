@@ -101,6 +101,7 @@
                 <td><span class="ip-addr">{{ interface.ip }}</span></td>
 
                 <!-- Status badges -->
+                {% set has_filter = interface.src_filter or interface.dst_filter %}
                 <td class="status-cell">
                     {% if interface.latency and interface.latency != '0ms' %}
                     <span class="badge badge-active">{{ interface.latency }}</span>
@@ -125,8 +126,15 @@
                 <td class="status-cell">
                     {% if interface.bandwidth %}
                     <span class="badge badge-bw">{{ interface.bandwidth }}</span>
+                    {% elif has_filter %}
+                    <span class="badge badge-zero">—</span>
                     {% else %}
                     <span class="badge badge-zero">—</span>
+                    {% endif %}
+                    {% if has_filter %}
+                    <br><span class="badge badge-filter" title="Impairments filtered — configure on interface detail page">
+                        {% if interface.src_filter %}src {{ interface.src_filter }}{% endif %}{% if interface.src_filter and interface.dst_filter %} / {% endif %}{% if interface.dst_filter %}dst {{ interface.dst_filter }}{% endif %}
+                    </span>
                     {% endif %}
                 </td>
 

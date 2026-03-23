@@ -277,11 +277,20 @@
                     {{ bandwidth if bandwidth else '—' }}
                 </span>
             </div>
+            {% if src_filter or dst_filter %}
+            <div class="imp-badge-group">
+                <span class="imp-label">Filter</span>
+                <span class="badge badge-filter">
+                    {% if src_filter %}src {{ src_filter }}{% endif %}{% if src_filter and dst_filter %} / {% endif %}{% if dst_filter %}dst {{ dst_filter }}{% endif %}
+                </span>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Apply form -->
         <form action="{{ url_for('apply_interface') }}" method="post" class="imp-apply-form">
             <input type="hidden" name="interface" value="{{ iface_name }}">
+            <input type="hidden" name="redirect_to" value="interface_detail">
             <div class="imp-form-row">
                 <div class="imp-field">
                     <label>Latency</label>
@@ -327,9 +336,27 @@
                     </div>
                 </div>
             </div>
+            <!-- Filter row -->
+            <div class="imp-form-row imp-filter-row">
+                <div class="imp-field">
+                    <label title="Apply impairments only to traffic from this source (IPv4 CIDR, e.g. 192.168.1.0/24 or 10.1.2.3/32). Leave blank to match all sources.">Src filter <span class="filter-hint">(optional)</span></label>
+                    <input type="text" name="src_filter" placeholder="e.g. 192.168.1.0/24"
+                           value="{{ src_filter or '' }}">
+                </div>
+                <div class="imp-field">
+                    <label title="Apply impairments only to traffic to this destination (IPv4 CIDR). Leave blank to match all destinations.">Dst filter <span class="filter-hint">(optional)</span></label>
+                    <input type="text" name="dst_filter" placeholder="e.g. 10.0.0.0/8"
+                           value="{{ dst_filter or '' }}">
+                </div>
+                <div class="imp-field" style="flex:1;">
+                    <label>&nbsp;</label>
+                    <span class="filter-note">IPv4 only &middot; egress &middot; not compatible with bandwidth limiting</span>
+                </div>
+            </div>
         </form>
         <form id="imp-remove-form" action="{{ url_for('remove_interface') }}" method="post">
             <input type="hidden" name="interface" value="{{ iface_name }}">
+            <input type="hidden" name="redirect_to" value="interface_detail">
         </form>
         </div>{# end flex:1 impairments column #}
 
