@@ -410,19 +410,21 @@ td {
     height: 18px;
     font-size: 0.75rem;
     border-radius: 3px;
-    border: 1px solid var(--border-strong);
-    background: var(--bg-elevated);
-    color: var(--text-muted);
+    border: 1px solid var(--accent-dim);
+    background: var(--accent-glow);
+    color: var(--accent-light);
     text-decoration: none;
     line-height: 1;
     flex-shrink: 0;
     transition: all var(--transition);
+    opacity: 0.65;
 }
 .iface-detail-btn:hover {
     border-color: var(--accent);
     color: var(--accent-light);
     background: var(--accent-glow);
     text-decoration: none;
+    opacity: 1;
 }
 
 .alias-edit-btn {
