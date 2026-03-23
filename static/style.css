@@ -58,10 +58,10 @@
     --btn-info-hover:    #1a4a80;
     --btn-blue:          #0f3460;
     --btn-blue-hover:    #1a4a80;
-    --btn-danger-bg:     #5c1010;
-    --btn-danger-hover:  #7d1f14;
-    --btn-remove-bg:     #7c4a00;
-    --btn-remove-hover:  #a05c00;
+    --btn-danger-bg:     #961e14;
+    --btn-danger-hover:  #b02418;
+    --btn-remove-bg:     #961e14;
+    --btn-remove-hover:  #b02418;
     --btn-disabled-bg:   #2a2a2a;
     --btn-disabled-text: #555555;
 
@@ -122,12 +122,16 @@
     --nav-bg:         #1a1a1a;
     --nav-border:     #c0392b;
 
+    --btn-primary-bg:     #1565c0;
+    --btn-primary-hover:  #1e88e5;
     --btn-secondary-bg:   #e5e7eb;
     --btn-secondary-hover:#d1d5db;
     --btn-disabled-bg:    #d1d5db;
     --btn-disabled-text:  #9ca3af;
-    --btn-remove-bg:      #d97706;
-    --btn-remove-hover:   #b45309;
+    --btn-remove-bg:      #1565c0;
+    --btn-remove-hover:   #1e88e5;
+    --btn-danger-bg:      #1565c0;
+    --btn-danger-hover:   #1e88e5;
 
     --shadow:    0 2px 10px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.15);
@@ -655,9 +659,9 @@ td {
 [data-theme="light"] .nat-off:hover:not(:disabled) { background: #e74c3c !important; }
 
 [data-theme="light"] .btn-reset-all {
-    background: #c0392b !important;
+    background: #1565c0 !important;
 }
-[data-theme="light"] .btn-reset-all:hover:not(:disabled) { background: #e74c3c !important; }
+[data-theme="light"] .btn-reset-all:hover:not(:disabled) { background: #1e88e5 !important; }
 
 .tool-unavailable {
     font-size: 0.72rem;
