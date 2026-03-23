@@ -205,6 +205,7 @@
     <div class="navbar-links">
         <a href="{{ url_for('index') }}" class="nav-link">Interfaces</a>
         <a href="{{ url_for('routes_page') }}" class="nav-link">Routes</a>
+        <a href="{{ url_for('admin') }}" class="nav-link">Admin</a>
     </div>
     <div class="navbar-right">
         <span class="hostname-badge"><span class="badge-label">Host:</span> {{ hostname }}</span>
@@ -275,25 +276,30 @@
                 <div class="imp-field">
                     <label>Latency</label>
                     <input type="text" name="latency" placeholder="e.g. 100ms"
-                           value="{{ latency if latency and latency != '0ms' else '' }}">
+                           value="{{ latency if latency and latency != '0ms' else '' }}"
+                           {% if iface_override.get('hide_latency') %}disabled title="Latency is disabled for this interface by admin"{% endif %}>
                 </div>
                 <div class="imp-field">
                     <label>Loss %</label>
                     <input type="text" name="loss" placeholder="e.g. 1%"
-                           value="{{ loss if loss and loss != '0%' else '' }}">
+                           value="{{ loss if loss and loss != '0%' else '' }}"
+                           {% if iface_override.get('hide_loss') %}disabled title="Packet loss is disabled for this interface by admin"{% endif %}>
                 </div>
                 <div class="imp-field">
                     <label>Jitter</label>
                     <input type="text" name="jitter" placeholder="e.g. 10ms"
-                           value="{{ jitter if jitter and jitter != '0ms' else '' }}">
+                           value="{{ jitter if jitter and jitter != '0ms' else '' }}"
+                           {% if iface_override.get('hide_jitter') %}disabled title="Jitter is disabled for this interface by admin"{% endif %}>
                 </div>
                 <div class="imp-field">
                     <label>Bandwidth</label>
                     <div class="bw-group">
                         <input type="text" name="bandwidth_value" class="bw-input"
                                placeholder="BW"
-                               value="{{ bandwidth.split()[0] if bandwidth else '' }}">
-                        <select name="bandwidth_unit" class="bw-unit">
+                               value="{{ bandwidth.split()[0] if bandwidth else '' }}"
+                               {% if iface_override.get('hide_bandwidth') %}disabled title="Bandwidth limiting is disabled for this interface by admin"{% endif %}>
+                        <select name="bandwidth_unit" class="bw-unit"
+                                {% if iface_override.get('hide_bandwidth') %}disabled{% endif %}>
                             <option value="kbit" {% if bandwidth and 'kbit' in bandwidth %}selected{% endif %}>kbit</option>
                             <option value="mbit" {% if not bandwidth or 'mbit' in bandwidth %}selected{% endif %}>mbit</option>
                             <option value="gbit" {% if bandwidth and 'gbit' in bandwidth %}selected{% endif %}>gbit</option>

@@ -39,8 +39,58 @@ app.secret_key = 'your_secret_key'  # Needed for flashing messages
 # Path to store interface aliases
 ALIASES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'interface_aliases.json')
 
-# Interfaces to hide from the UI — comma-separated env var, default: docker0
-IGNORED_INTERFACES = [i.strip() for i in os.environ.get('IGNORE_INTERFACES', 'docker0').split(',') if i.strip()]
+# ---------------------------------------------------------------------------
+# Admin config — persistent settings stored in a JSON file.
+# The file location can be overridden via ADMIN_CONFIG_PATH so that Docker
+# users can mount a volume and have settings survive container restarts.
+# Env vars supply the baseline defaults when no config file exists yet.
+# ---------------------------------------------------------------------------
+ADMIN_CONFIG_PATH = os.environ.get(
+    'ADMIN_CONFIG_PATH',
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'admin_config.json')
+)
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')  # empty = no auth required
+
+def _env_list(var, default=''):
+    """Parse a comma-separated env var into a list of stripped strings."""
+    return [i.strip() for i in os.environ.get(var, default).split(',') if i.strip()]
+
+def load_admin_config():
+    """Load admin config from file, falling back to env var defaults."""
+    defaults = {
+        'hidden_interfaces': _env_list('IGNORE_INTERFACES', 'docker0'),
+        'disable_tools_column': os.environ.get('DISABLE_TOOLS_COLUMN', 'false').lower() == 'true',
+        'default_theme': os.environ.get('DEFAULT_THEME', ''),
+        'interface_overrides': {},  # keyed by interface name
+    }
+    if os.path.exists(ADMIN_CONFIG_PATH):
+        try:
+            with open(ADMIN_CONFIG_PATH) as f:
+                saved = json.load(f)
+            # Merge: saved values override defaults
+            defaults.update(saved)
+        except Exception as e:
+            logging.error(f"Error reading admin config: {e}")
+    return defaults
+
+def save_admin_config(cfg):
+    """Persist admin config to file, creating parent dirs as needed."""
+    try:
+        os.makedirs(os.path.dirname(ADMIN_CONFIG_PATH), exist_ok=True)
+        with open(ADMIN_CONFIG_PATH, 'w') as f:
+            json.dump(cfg, f, indent=4)
+        return True, None
+    except Exception as e:
+        logging.error(f"Error saving admin config: {e}")
+        return False, str(e)
+
+def get_iface_override(cfg, iface, key, default=False):
+    """Return a per-interface override value, falling back to default."""
+    return cfg.get('interface_overrides', {}).get(iface, {}).get(key, default)
+
+# Interfaces to not display in the UI — driven by admin config (or env var default)
+# This is re-read on each request via load_admin_config() so it stays current.
+IGNORED_INTERFACES = _env_list('IGNORE_INTERFACES', 'docker0')
 
 # Path to store temporary pcap files - use /tmp directory
 PCAP_DIR = '/tmp/hyyperwan_pcaps'
@@ -216,7 +266,8 @@ def list_interfaces():
         
         # Load interface aliases; build ignored set (always include 'lo')
         aliases = load_interface_aliases()
-        ignored_interfaces_set = set(IGNORED_INTERFACES + ['lo'])
+        cfg = load_admin_config()
+        ignored_interfaces_set = set(cfg.get('hidden_interfaces', IGNORED_INTERFACES) + ['lo'])
         
         try:
             data = json.loads(output)
@@ -619,22 +670,19 @@ def exec_ip_route(args, ip_version=4):
 @app.route('/')
 def index():
     try:
-        # Check if ip command is available first
         ip_available = is_ip_available()
-        iptables_available = is_iptables_available() # Check for iptables
-
-        # Only attempt to list interfaces if ip command is available
+        iptables_available = is_iptables_available()
         interfaces = list_interfaces() if ip_available else []
-
         hostname = socket.gethostname()
         tcpdump_available = is_tcpdump_available()
         tc_available = is_tc_available()
-        tools_column_disabled = os.getenv('DISABLE_TOOLS_COLUMN', 'false').lower() == 'true'
+        cfg = load_admin_config()
 
         return render_template('index.html', interfaces=interfaces, hostname=hostname,
                               tcpdump_available=tcpdump_available, tc_available=tc_available,
                               ip_available=ip_available, iptables_available=iptables_available,
-                              tools_column_disabled=tools_column_disabled)
+                              tools_column_disabled=cfg.get('disable_tools_column', False),
+                              iface_overrides=cfg.get('interface_overrides', {}))
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}")
         flash("An error occurred while loading the page", "error")
@@ -642,7 +690,7 @@ def index():
         return render_template('index.html', interfaces=[], hostname=hostname,
                               tcpdump_available=False, tc_available=False,
                               ip_available=False, iptables_available=False,
-                              tools_column_disabled=False)
+                              tools_column_disabled=False, iface_overrides={})
 
 @app.route('/favicon.png')
 def favicon():
@@ -1292,6 +1340,8 @@ def interface_detail(name):
         mtu = get_mtu(name)
         latency, loss, jitter, bandwidth = get_qdisc_settings(name)
         tc_available = is_tc_available()
+        cfg = load_admin_config()
+        iface_ov = cfg.get('interface_overrides', {}).get(name, {})
         return render_template('interface.html',
                                hostname=hostname,
                                iface_name=name,
@@ -1303,7 +1353,8 @@ def interface_detail(name):
                                loss=loss,
                                jitter=jitter,
                                bandwidth=bandwidth,
-                               tc_available=tc_available)
+                               tc_available=tc_available,
+                               iface_override=iface_ov)
     except Exception as e:
         logging.error(f"Error in interface_detail for {name}: {e}")
         flash(f"Error loading interface detail: {e}", "error")
@@ -1363,6 +1414,82 @@ def interface_del_addr(name):
     else:
         flash(f"Failed to remove {address} from {name}: {err}", "error")
     return redirect(url_for('interface_detail', name=name))
+
+
+# ---------------------------------------------------------------------------
+# Admin routes
+# ---------------------------------------------------------------------------
+import functools
+from flask import Response
+
+def _check_admin_auth(username, password):
+    if not ADMIN_PASSWORD:
+        return True  # no password set — open access
+    return password == ADMIN_PASSWORD
+
+def _require_admin_auth(f):
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not _check_admin_auth(auth.username, auth.password):
+            return Response(
+                'Admin login required.',
+                401,
+                {'WWW-Authenticate': 'Basic realm="HyyperWAN Admin"'}
+            )
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/admin', methods=['GET'])
+@_require_admin_auth
+def admin():
+    cfg = load_admin_config()
+    # Get live interface list for the interface overrides table
+    all_interfaces = []
+    try:
+        result = subprocess.run(['ip', '-j', 'addr'], capture_output=True, text=True)
+        data = json.loads(result.stdout)
+        all_interfaces = [i['ifname'] for i in data if i['ifname'] != 'lo']
+    except Exception:
+        pass
+    hostname = socket.gethostname()
+    return render_template('admin.html',
+                           hostname=hostname,
+                           cfg=cfg,
+                           all_interfaces=all_interfaces,
+                           admin_password_set=bool(ADMIN_PASSWORD))
+
+@app.route('/admin/save', methods=['POST'])
+@_require_admin_auth
+def admin_save():
+    cfg = load_admin_config()
+
+    # Global settings
+    hidden_raw = request.form.get('hidden_interfaces', '')
+    cfg['hidden_interfaces'] = [i.strip() for i in hidden_raw.split(',') if i.strip()]
+    cfg['disable_tools_column'] = 'disable_tools_column' in request.form
+    cfg['default_theme'] = request.form.get('default_theme', '')
+
+    # Per-interface overrides — rebuild from form
+    overrides = {}
+    all_ifaces = request.form.getlist('iface_names')
+    for iface in all_ifaces:
+        overrides[iface] = {
+            'hide_capture':   f'hide_capture_{iface}'   in request.form,
+            'hide_nat':       f'hide_nat_{iface}'       in request.form,
+            'hide_latency':   f'hide_latency_{iface}'   in request.form,
+            'hide_jitter':    f'hide_jitter_{iface}'    in request.form,
+            'hide_loss':      f'hide_loss_{iface}'      in request.form,
+            'hide_bandwidth': f'hide_bandwidth_{iface}' in request.form,
+        }
+    cfg['interface_overrides'] = overrides
+
+    ok, err = save_admin_config(cfg)
+    if ok:
+        flash('Settings saved successfully.', 'success')
+    else:
+        flash(f'Error saving settings: {err}', 'error')
+    return redirect(url_for('admin'))
 
 
 def cleanup_on_exit():

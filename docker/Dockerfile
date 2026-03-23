@@ -16,7 +16,6 @@ COPY requirements.txt .
 COPY app.py .
 COPY templates ./templates
 COPY static ./static
-COPY ignored_interfaces.json .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -63,6 +62,25 @@ ENV ENABLE_HTTPS=false
 ENV HTTP_PORT=8080
 ENV HTTPS_PORT=8443
 ENV FLASK_RUN_HOST=0.0.0.0
+
+# ---------------------------------------------------------------------------
+# Admin / UI settings — override with 'docker run -e VAR=value'
+#
+# Persist admin settings across container restarts by mounting a volume:
+#   docker run --net=host --privileged \
+#     -v /etc/hyyperwan/data:/app/data hyyperwan
+#
+# The admin config file will be written to /app/data/admin_config.json.
+# Without a volume mount, settings saved via the admin page are lost on restart.
+#
+# ADMIN_PASSWORD    — password for /admin page; pass at runtime only, never bake in:
+#                     docker run -e ADMIN_PASSWORD=secret ...
+# IGNORE_INTERFACES — comma-separated interfaces to hide (default: docker0)
+# DISABLE_TOOLS_COLUMN — hide Capture/NAT column (default: false)
+# ADMIN_CONFIG_PATH — path to config JSON (default: /app/data/admin_config.json)
+# ---------------------------------------------------------------------------
+ENV IGNORE_INTERFACES=docker0
+ENV DISABLE_TOOLS_COLUMN=false
 
 # Document both ports; only the active ones need to be published.
 EXPOSE 8080 8443

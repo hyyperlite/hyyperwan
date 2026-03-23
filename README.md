@@ -273,10 +273,34 @@ All configuration is done through environment variables — in the `.env` file f
 | `SSL_CERT_PATH` | _(unset)_ | Path to TLS certificate (required when ENABLE_HTTPS=true) |
 | `SSL_KEY_PATH` | _(unset)_ | Path to TLS private key (required when ENABLE_HTTPS=true) |
 | `DISABLE_TOOLS_COLUMN` | `false` | Hide the Tools column (packet capture + NAT buttons) |
-| `IGNORE_INTERFACES` | `docker0` | Comma-separated list of interfaces to hide from the UI |
+| `IGNORE_INTERFACES` | `docker0` | Comma-separated list of interfaces to not display in the UI |
+| `ADMIN_PASSWORD` | _(unset)_ | Password for the `/admin` page — pass at runtime only, never bake into an image. If unset, the admin page is open. |
+| `ADMIN_CONFIG_PATH` | `/app/data/admin_config.json` | Path to the admin settings file. Mount a volume here for persistence across restarts. |
 | `FLASK_DEBUG` | `false` | Enable Flask debug mode |
 | `USE_HTTPS` | `false` | Legacy alias: `true` is equivalent to `ENABLE_HTTPS=true` + `ENABLE_HTTP=false` |
 | `FLASK_RUN_PORT` | _(unset)_ | Legacy alias for `HTTP_PORT` |
+
+### Admin Page
+
+Navigate to `/admin` in your browser to configure:
+
+- **Do not display interfaces** — choose which interfaces are hidden from the main table
+- **Hide Tools column** — globally hide the Capture / NAT column
+- **Default theme** — set the default theme for users with no localStorage preference
+- **Per-interface controls** — disable (grey out) individual impairment fields (latency, jitter, loss, bandwidth) or tool buttons (Capture, NAT) on a per-interface basis
+
+**Persistent settings (Docker):** Admin settings are saved to `ADMIN_CONFIG_PATH` (`/app/data/admin_config.json` by default). Without a volume mount, settings are lost when the container is recreated. To persist them:
+
+```bash
+docker run -d --name hyyperwan \
+  --net=host --privileged \
+  --restart unless-stopped \
+  -v /etc/hyyperwan/data:/app/data \
+  -e ADMIN_PASSWORD=secret \
+  ghcr.io/hyyperlite/hyyperwan:latest
+```
+
+> **Security note:** Never set `ADMIN_PASSWORD` as a `ENV` in a Dockerfile — it would be baked into the image layer and visible via `docker inspect`. Always pass it at runtime with `-e`.
 
 ---
 

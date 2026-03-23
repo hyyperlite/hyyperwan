@@ -24,6 +24,7 @@
     <div class="navbar-links">
         <a href="{{ url_for('index') }}" class="nav-link active">Interfaces</a>
         <a href="{{ url_for('routes_page') }}" class="nav-link">Routes</a>
+        <a href="{{ url_for('admin') }}" class="nav-link">Admin</a>
     </div>
     <div class="navbar-right">
         <span class="hostname-badge"><span class="badge-label">Host:</span> {{ hostname }}</span>
@@ -147,6 +148,7 @@
                 </td>
 
                 <!-- Actions -->
+                {% set ov = iface_overrides.get(interface.name, {}) %}
                 <td class="actions-cell">
                     {% if tc_available %}
                     <form action="{{ url_for('apply_interface') }}" method="post" class="apply-form">
@@ -154,19 +156,24 @@
                         <div class="form-row">
                             <input type="text" name="latency"
                                    placeholder="Latency"
-                                   title="Latency (e.g. 100ms, 50us)">
+                                   title="{% if ov.get('hide_latency') %}Latency is disabled for this interface by admin{% else %}Latency (e.g. 100ms, 50us){% endif %}"
+                                   {% if ov.get('hide_latency') %}disabled{% endif %}>
                             <input type="text" name="loss"
                                    placeholder="Loss %"
-                                   title="Packet loss (e.g. 1%)">
+                                   title="{% if ov.get('hide_loss') %}Packet loss is disabled for this interface by admin{% else %}Packet loss (e.g. 1%){% endif %}"
+                                   {% if ov.get('hide_loss') %}disabled{% endif %}>
                             <input type="text" name="jitter"
                                    placeholder="Jitter"
-                                   title="Jitter / delay variation (e.g. 10ms)">
+                                   title="{% if ov.get('hide_jitter') %}Jitter is disabled for this interface by admin{% else %}Jitter / delay variation (e.g. 10ms){% endif %}"
+                                   {% if ov.get('hide_jitter') %}disabled{% endif %}>
                         </div>
                         <div class="form-row">
-                            <div class="bw-group" title="Bandwidth limit (leave empty to keep current)">
+                            <div class="bw-group" title="{% if ov.get('hide_bandwidth') %}Bandwidth limiting is disabled for this interface by admin{% else %}Bandwidth limit (leave empty to keep current){% endif %}">
                                 <input type="text" name="bandwidth_value" class="bw-input"
-                                       placeholder="BW">
-                                <select name="bandwidth_unit" class="bw-unit">
+                                       placeholder="BW"
+                                       {% if ov.get('hide_bandwidth') %}disabled{% endif %}>
+                                <select name="bandwidth_unit" class="bw-unit"
+                                        {% if ov.get('hide_bandwidth') %}disabled{% endif %}>
                                     <option value="kbit">kbit</option>
                                     <option value="mbit" selected>mbit</option>
                                     <option value="gbit">gbit</option>
@@ -194,8 +201,7 @@
                     <div class="tools-stack">
                         {% if tcpdump_available %}
                         <button type="button" class="btn btn-capture btn-sm"
-                                onclick="openCaptureModal('{{ interface.name }}', '{{ interface.alias }}')"
-                                title="Start a tcpdump packet capture on this interface">
+                                {% if ov.get('hide_capture') %}disabled title="Capture is disabled for this interface by admin"{% else %}onclick="openCaptureModal('{{ interface.name }}', '{{ interface.alias }}')" title="Start a tcpdump packet capture on this interface"{% endif %}>
                             Capture
                         </button>
                         {% else %}
@@ -210,7 +216,7 @@
                                    value="{{ 'disable' if interface.nat_status else 'enable' }}">
                             <button type="submit"
                                     class="btn btn-sm {% if interface.nat_status %}nat-on{% else %}nat-off{% endif %}"
-                                    title="{% if interface.nat_status %}Source NAT (Masquerade) is ENABLED on {{ interface.alias if interface.alias else interface.name }} — outbound traffic on this interface is masqueraded. Click to disable.{% else %}Source NAT (Masquerade) is DISABLED on {{ interface.alias if interface.alias else interface.name }} — click to enable masquerade for traffic egressing this interface.{% endif %}">
+                                    {% if ov.get('hide_nat') %}disabled title="NAT is disabled for this interface by admin"{% else %}title="{% if interface.nat_status %}Source NAT (Masquerade) is ENABLED on {{ interface.alias if interface.alias else interface.name }} — outbound traffic on this interface is masqueraded. Click to disable.{% else %}Source NAT (Masquerade) is DISABLED on {{ interface.alias if interface.alias else interface.name }} — click to enable masquerade for traffic egressing this interface.{% endif %}"{% endif %}>
                                 {{ 'NAT ON' if interface.nat_status else 'NAT OFF' }}
                             </button>
                         </form>
