@@ -1256,65 +1256,101 @@ def cleanup_on_exit():
 atexit.register(cleanup_on_exit)
 
 if __name__ == '__main__':
-    host = os.getenv('FLASK_RUN_HOST', '0.0.0.0')
-    port_env = os.getenv('FLASK_RUN_PORT')
-    use_https_env = os.getenv('USE_HTTPS', 'false').lower()
+    from werkzeug.serving import make_server
+
+    # ---------------------------------------------------------------------------
+    # Listener configuration
+    #
+    # New variables (preferred):
+    #   ENABLE_HTTP=true|false    — serve HTTP  (default: true)
+    #   ENABLE_HTTPS=true|false   — serve HTTPS (default: false)
+    #   HTTP_PORT=8080            — HTTP  listen port
+    #   HTTPS_PORT=8443           — HTTPS listen port
+    #   SSL_CERT_PATH=...         — path to TLS certificate
+    #   SSL_KEY_PATH=...          — path to TLS private key
+    #
+    # Legacy variables (still honoured for backward compatibility):
+    #   USE_HTTPS=true            — equivalent to ENABLE_HTTPS=true, ENABLE_HTTP=false
+    #   FLASK_RUN_PORT=...        — sets HTTP_PORT when ENABLE_HTTP is active
+    #   FLASK_RUN_HOST=...        — bind address (default 0.0.0.0)
+    #   FLASK_DEBUG=true          — enable Werkzeug debugger
+    #
+    # Docker examples:
+    #   HTTP only (default):
+    #     docker run -e ENABLE_HTTP=true ...
+    #   HTTPS only:
+    #     docker run -e ENABLE_HTTPS=true -e SSL_CERT_PATH=/certs/cert.pem -e SSL_KEY_PATH=/certs/key.pem ...
+    #   Both HTTP and HTTPS:
+    #     docker run -e ENABLE_HTTP=true -e ENABLE_HTTPS=true -e SSL_CERT_PATH=... -e SSL_KEY_PATH=... ...
+    # ---------------------------------------------------------------------------
+
+    host       = os.getenv('FLASK_RUN_HOST', '0.0.0.0')
     debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
 
-    use_https = (use_https_env == 'true')
-    port = None
+    # Port defaults — FLASK_RUN_PORT is a legacy alias for HTTP_PORT
+    http_port  = int(os.getenv('HTTP_PORT',  os.getenv('FLASK_RUN_PORT', '8080')))
+    https_port = int(os.getenv('HTTPS_PORT', '8443'))
 
-    if port_env:
-        try:
-            port = int(port_env)
-            logging.info(f"FLASK_RUN_PORT environment variable set, using port {port}.")
-        except ValueError:
-            logging.error(f"Invalid value for FLASK_RUN_PORT: '{port_env}'. Falling back to default port.")
-            # port remains None, default will be chosen below
+    # Legacy USE_HTTPS flag: if set (and new flags not explicitly provided),
+    # flip the defaults so HTTPS is on and HTTP is off.
+    use_https_legacy = os.getenv('USE_HTTPS', 'false').lower() == 'true'
+    default_http  = 'false' if use_https_legacy else 'true'
+    default_https = 'true'  if use_https_legacy else 'false'
 
-    if port is None:  # FLASK_RUN_PORT was not set or was invalid
-        if use_https:
-            port = 8443  # Default HTTPS port
-            logging.info(f"FLASK_RUN_PORT not set or invalid. Defaulting to HTTPS port {port}.")
+    enable_http  = os.getenv('ENABLE_HTTP',  default_http ).lower() == 'true'
+    enable_https = os.getenv('ENABLE_HTTPS', default_https).lower() == 'true'
+
+    # Validate SSL when HTTPS is requested
+    ssl_context = None
+    if enable_https:
+        ssl_cert = os.getenv('SSL_CERT_PATH', 'certificates/cert.pem')
+        ssl_key  = os.getenv('SSL_KEY_PATH',  'certificates/key.pem')
+        cert_ok  = ssl_cert and os.path.exists(ssl_cert)
+        key_ok   = ssl_key  and os.path.exists(ssl_key)
+        if cert_ok and key_ok:
+            ssl_context = (ssl_cert, ssl_key)
+            logging.info(f"SSL configured: cert={ssl_cert}, key={ssl_key}")
         else:
-            port = 8080  # Default HTTP port
-            logging.info(f"FLASK_RUN_PORT not set or invalid. Defaulting to HTTP port {port}.")
+            logging.error(
+                f"HTTPS requested but SSL files missing or not found "
+                f"(cert='{ssl_cert}' exists={cert_ok}, key='{ssl_key}' exists={key_ok}). "
+                "Disabling HTTPS and falling back to HTTP."
+            )
+            enable_https = False
+            enable_http  = True
 
-    run_kwargs = {'host': host, 'port': port, 'debug': debug_mode}
+    if not enable_http and not enable_https:
+        logging.error("No listeners enabled — defaulting to HTTP on port 8080.")
+        enable_http = True
 
-    if use_https:
-        ssl_cert_path = os.getenv('SSL_CERT_PATH')
-        ssl_key_path = os.getenv('SSL_KEY_PATH')
-        
-        https_configured_properly = True
-        if not ssl_cert_path or not os.path.exists(ssl_cert_path):
-            logging.error(f"SSL_CERT_PATH ('{ssl_cert_path}') is not set or the file does not exist.")
-            https_configured_properly = False
-        
-        if not ssl_key_path or not os.path.exists(ssl_key_path):
-            logging.error(f"SSL_KEY_PATH ('{ssl_key_path}') is not set or the file does not exist.")
-            https_configured_properly = False
+    # Build server factories
+    def make_http_server():
+        logging.info(f"HTTP  listener starting on {host}:{http_port}")
+        return make_server(host, http_port, app)
 
-        if https_configured_properly:
-            run_kwargs['ssl_context'] = (ssl_cert_path, ssl_key_path)
-            logging.info(f"Attempting to start Flask app in HTTPS mode on {host}:{port}")
-        else:
-            logging.warning("SSL configuration is incomplete or invalid. Falling back to HTTP mode.")
-            # If falling back from HTTPS, and the port was the default HTTPS port (8443)
-            # AND it was not explicitly set by FLASK_RUN_PORT, change to default HTTP port (8080).
-            if port == 8443 and not port_env: 
-                port = 8080
-                run_kwargs['port'] = port
-                logging.info(f"Fallback HTTP mode will run on default HTTP port {port}.")
-            else:
-                logging.info(f"Fallback HTTP mode will run on port {port}.")
-            # Remove ssl_context if it was added, though it wouldn't be in this path
-            run_kwargs.pop('ssl_context', None) 
-    else:
-        logging.info(f"Attempting to start Flask app in HTTP mode on {host}:{port}")
+    def make_https_server():
+        logging.info(f"HTTPS listener starting on {host}:{https_port}")
+        return make_server(host, https_port, app, ssl_context=ssl_context)
 
     try:
-        app.run(**run_kwargs)
+        if enable_http and enable_https:
+            # Run HTTP in a daemon thread; HTTPS blocks the main thread.
+            def _serve_http():
+                try:
+                    make_http_server().serve_forever()
+                except Exception as e:
+                    logging.exception(f"HTTP listener error: {e}")
+
+            http_thread = threading.Thread(target=_serve_http, name='http-server', daemon=True)
+            http_thread.start()
+            logging.info(f"HTTP  listener running in background thread on {host}:{http_port}")
+            make_https_server().serve_forever()
+
+        elif enable_http:
+            make_http_server().serve_forever()
+
+        else:
+            make_https_server().serve_forever()
+
     except Exception as e:
-        # Log the full exception traceback for better debugging
-        logging.exception(f"Failed to start Flask application on {host}:{port}. Error: {e}")
+        logging.exception(f"Failed to start server: {e}")
