@@ -919,6 +919,12 @@ def apply():
         else:
             bandwidth_raw = bw_clean
 
+        # Server-side: ignore filters if disabled by admin for this interface
+        cfg_check = load_admin_config()
+        if cfg_check.get('interface_overrides', {}).get(interface, {}).get('hide_filter'):
+            src_filter = ''
+            dst_filter = ''
+
         src_valid, src_clean, src_error = validate_cidr(src_filter, 'Source filter')
         if not src_valid:
             validation_errors.append(src_error)
@@ -1773,6 +1779,7 @@ def admin_save():
             'hide_jitter':    f'hide_jitter_{iface}'    in request.form,
             'hide_loss':      f'hide_loss_{iface}'      in request.form,
             'hide_bandwidth': f'hide_bandwidth_{iface}' in request.form,
+            'hide_filter':    f'hide_filter_{iface}'    in request.form,
         }
         alias = request.form.get(f'alias_{iface}', '').strip()
         if alias:

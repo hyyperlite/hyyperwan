@@ -337,22 +337,24 @@
                 </div>
             </div>
             <!-- Filter row -->
+            {% if not iface_override.get('hide_filter') %}
             <div class="imp-form-row imp-filter-row">
                 <div class="imp-field">
                     <label title="Apply impairments only to traffic from this source (IPv4 CIDR, e.g. 192.168.1.0/24 or 10.1.2.3/32). Leave blank to match all sources.">Src filter <span class="filter-hint">(optional)</span></label>
                     <input type="text" name="src_filter" placeholder="e.g. 192.168.1.0/24"
-                           value="{{ src_filter or '' }}">
+                           value="{{ src_filter or '' }}" style="min-width:180px;">
                 </div>
                 <div class="imp-field">
                     <label title="Apply impairments only to traffic to this destination (IPv4 CIDR). Leave blank to match all destinations.">Dst filter <span class="filter-hint">(optional)</span></label>
                     <input type="text" name="dst_filter" placeholder="e.g. 10.0.0.0/8"
-                           value="{{ dst_filter or '' }}">
+                           value="{{ dst_filter or '' }}" style="min-width:180px;">
                 </div>
                 <div class="imp-field" style="flex:1;">
                     <label>&nbsp;</label>
                     <span class="filter-note">IPv4 only &middot; egress &middot; not compatible with bandwidth limiting</span>
                 </div>
             </div>
+            {% endif %}
         </form>
         <form id="imp-remove-form" action="{{ url_for('remove_interface') }}" method="post">
             <input type="hidden" name="interface" value="{{ iface_name }}">

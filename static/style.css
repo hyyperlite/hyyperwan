@@ -381,6 +381,14 @@ td {
     margin-top: 1px;
 }
 
+.iface-filter-badge {
+    margin-top: 4px;
+}
+.iface-filter-badge .badge-filter {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+}
+
 .iface-name-row {
     display: flex;
     align-items: center;

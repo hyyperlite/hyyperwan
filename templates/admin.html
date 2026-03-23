@@ -238,6 +238,7 @@
                         <th rowspan="2">Alias</th>
                         <th colspan="2" class="col-sep col-group-label">Tools column</th>
                         <th colspan="4" class="col-sep col-group-label">Impairments</th>
+                        <th colspan="1" class="col-sep col-group-label">Filter</th>
                     </tr>
                     <tr>
                         <th class="col-sep">Disable<br>Capture</th>
@@ -246,6 +247,7 @@
                         <th>Disable<br>Jitter</th>
                         <th>Disable<br>Loss</th>
                         <th>Disable<br>Bandwidth</th>
+                        <th class="col-sep">Disable<br>Src/Dst Filter</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -287,6 +289,10 @@
                         <td>
                             <input type="checkbox" name="hide_bandwidth_{{ iface }}"
                                    {% if ov.get('hide_bandwidth') %}checked{% endif %}>
+                        </td>
+                        <td class="col-sep">
+                            <input type="checkbox" name="hide_filter_{{ iface }}"
+                                   {% if ov.get('hide_filter') %}checked{% endif %}>
                         </td>
                     </tr>
                     {% endfor %}
