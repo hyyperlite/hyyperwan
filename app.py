@@ -69,6 +69,7 @@ def load_admin_config():
         'disable_routes': False,
         'disable_interface_ips': False,
         'disable_mtu': False,
+        'hide_admin_link': False,
         'interface_overrides': {},  # keyed by interface name
     }
     if os.path.exists(ADMIN_CONFIG_PATH):
@@ -690,7 +691,8 @@ def index():
                               tcpdump_available=tcpdump_available, tc_available=tc_available,
                               ip_available=ip_available, iptables_available=iptables_available,
                               tools_column_disabled=cfg.get('disable_tools_column', False),
-                              iface_overrides=cfg.get('interface_overrides', {}))
+                              iface_overrides=cfg.get('interface_overrides', {}),
+                              hide_admin_link=cfg.get('hide_admin_link', False))
     except Exception as e:
         logging.error(f"Error in index route: {str(e)}")
         flash("An error occurred while loading the page", "error")
@@ -698,7 +700,8 @@ def index():
         return render_template('index.html', interfaces=[], hostname=hostname,
                               tcpdump_available=False, tc_available=False,
                               ip_available=False, iptables_available=False,
-                              tools_column_disabled=False, iface_overrides={})
+                              tools_column_disabled=False, iface_overrides={},
+                              hide_admin_link=False)
 
 @app.route('/favicon.png')
 def favicon():
@@ -1191,7 +1194,8 @@ def routes_page():
         cfg = load_admin_config()
         return render_template('routes.html', routes_v4=routes_v4, routes_v6=routes_v6,
                                interfaces=interfaces, hostname=hostname,
-                               disable_routes=cfg.get('disable_routes', False))
+                               disable_routes=cfg.get('disable_routes', False),
+                               hide_admin_link=cfg.get('hide_admin_link', False))
     except Exception as e:
         logging.error(f"Error in routes_page: {str(e)}")
         flash(f"Error loading route table: {str(e)}", "error")
@@ -1386,7 +1390,8 @@ def interface_detail(name):
                                tools_column_disabled=tools_column_disabled,
                                disable_interface_ips=cfg.get('disable_interface_ips', False),
                                disable_mtu=cfg.get('disable_mtu', False),
-                               iface_override=iface_ov)
+                               iface_override=iface_ov,
+                               hide_admin_link=cfg.get('hide_admin_link', False))
     except Exception as e:
         logging.error(f"Error in interface_detail for {name}: {e}")
         flash(f"Error loading interface detail: {e}", "error")
@@ -1517,6 +1522,17 @@ def admin_save():
     cfg['disable_routes']         = 'disable_routes'         in request.form
     cfg['disable_interface_ips']  = 'disable_interface_ips'  in request.form
     cfg['disable_mtu']            = 'disable_mtu'            in request.form
+    hide_admin_now = 'hide_admin_link' in request.form
+    was_hidden = cfg.get('hide_admin_link', False)
+    cfg['hide_admin_link'] = hide_admin_now
+    if hide_admin_now and not was_hidden:
+        # Build the full admin URL from the current request so we show the right host/port/scheme
+        admin_url = request.host_url.rstrip('/') + url_for('admin')
+        flash(
+            f'Admin link is now hidden from the navbar. '
+            f'Bookmark or note this URL to return: {admin_url}',
+            'warning'
+        )
 
     # Per-interface overrides and aliases — rebuild from form
     overrides = {}

@@ -185,6 +185,13 @@
             <div class="admin-note">Hides the Capture and NAT buttons column for all interfaces.</div>
 
             <div class="admin-field">
+                <label for="hide_admin_link">Hide Admin link from navbar</label>
+                <input type="checkbox" id="hide_admin_link" name="hide_admin_link"
+                       {% if cfg.hide_admin_link %}checked{% endif %}>
+            </div>
+            <div class="admin-note">Removes the Admin link from the navbar on all pages. The admin page remains accessible directly at <code>/admin</code>. A reminder with the full URL is shown when this is first enabled.</div>
+
+            <div class="admin-field">
                 <label for="default_theme">Default theme</label>
                 <select id="default_theme" name="default_theme">
                     <option value=""    {% if cfg.default_theme == ''      %}selected{% endif %}>Dark</option>
