@@ -1006,6 +1006,47 @@ def start_capture():
         logging.error(f"Error starting packet capture: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+def count_pcap_packets(filepath):
+    """Count packets in a pcap file by reading record headers (no subprocess needed)."""
+    try:
+        size = os.path.getsize(filepath)
+        if size < 24:
+            return 0
+        import struct
+        with open(filepath, 'rb') as f:
+            magic = f.read(4)
+            if len(magic) < 4:
+                return 0
+            # Determine byte order from magic number
+            if magic == b'\xd4\xc3\xb2\xa1':
+                endian = '<'
+            elif magic == b'\xa1\xb2\xc3\xd4':
+                endian = '>'
+            else:
+                return 0
+            f.read(20)  # skip rest of global header (24 - 4 already read)
+            count = 0
+            while True:
+                rec_hdr = f.read(16)
+                if len(rec_hdr) < 16:
+                    break
+                incl_len = struct.unpack(endian + 'I', rec_hdr[8:12])[0]
+                f.seek(incl_len, 1)
+                count += 1
+        return count
+    except Exception:
+        return 0
+
+
+@app.route('/capture_status/<capture_id>', methods=['GET'])
+def capture_status(capture_id):
+    if capture_id not in active_captures:
+        return jsonify({'active': False, 'packet_count': 0})
+    info = active_captures[capture_id]
+    count = count_pcap_packets(info['file']) if os.path.exists(info['file']) else 0
+    return jsonify({'active': True, 'packet_count': count, 'max_packets': 10000})
+
+
 @app.route('/stop_capture/<capture_id>', methods=['POST'])
 def stop_capture(capture_id):
     try:

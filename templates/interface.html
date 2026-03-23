@@ -728,7 +728,6 @@ document.addEventListener('visibilitychange', () => {
 {% if not tools_column_disabled and tcpdump_available and not iface_override.get('hide_capture') %}
 let activeCaptureId  = null;
 let captureInterval  = null;
-let captureStartTime = null;
 
 function openCaptureModal(ifaceName, ifaceAlias) {
     document.getElementById('captureStatus').className = 'capture-status';
@@ -771,14 +770,22 @@ document.getElementById('startCaptureBtn').addEventListener('click', function ()
         .then(data => {
             if (data.success) {
                 activeCaptureId = data.capture_id;
-                captureStartTime = Date.now();
                 statusEl.className = 'capture-status success visible';
-                statusEl.textContent = 'Capturing… (limit: 10 000 packets)';
+                statusEl.textContent = 'Capturing… 0 / 10,000 packets';
                 document.getElementById('stopCaptureBtn').disabled = false;
                 captureInterval = setInterval(() => {
-                    const secs = Math.floor((Date.now() - captureStartTime) / 1000);
-                    statusEl.textContent = `Capturing… ${secs}s elapsed (limit: 10 000 packets)`;
-                }, 2000);
+                    fetch('/capture_status/' + activeCaptureId)
+                        .then(r => r.json())
+                        .then(s => {
+                            if (s.active) {
+                                statusEl.textContent = `Capturing… ${s.packet_count.toLocaleString()} / ${s.max_packets.toLocaleString()} packets`;
+                                if (s.packet_count >= s.max_packets) {
+                                    statusEl.textContent = `Capture limit reached (${s.max_packets.toLocaleString()} packets) — click Stop & Download`;
+                                }
+                            }
+                        })
+                        .catch(() => {});
+                }, 1000);
             } else {
                 statusEl.className = 'capture-status error visible';
                 statusEl.textContent = 'Error: ' + data.error;
