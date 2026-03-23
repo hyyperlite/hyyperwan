@@ -1320,13 +1320,20 @@ def interface_detail(name):
         addresses = get_interface_addresses(name)
         stats = read_proc_net_dev(name)
         mtu = get_mtu(name)
+        latency, loss, jitter, bandwidth = get_qdisc_settings(name)
+        tc_available = is_tc_available()
         return render_template('interface.html',
                                hostname=hostname,
                                iface_name=name,
                                iface_alias=alias,
                                addresses=addresses,
                                initial_stats=stats,
-                               mtu=mtu)
+                               mtu=mtu,
+                               latency=latency,
+                               loss=loss,
+                               jitter=jitter,
+                               bandwidth=bandwidth,
+                               tc_available=tc_available)
     except Exception as e:
         logging.error(f"Error in interface_detail for {name}: {e}")
         flash(f"Error loading interface detail: {e}", "error")
