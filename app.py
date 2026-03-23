@@ -61,6 +61,9 @@ def load_admin_config():
         'hidden_interfaces': _env_list('IGNORE_INTERFACES', 'docker0'),
         'disable_tools_column': os.environ.get('DISABLE_TOOLS_COLUMN', 'false').lower() == 'true',
         'default_theme': os.environ.get('DEFAULT_THEME', ''),
+        'disable_routes': False,
+        'disable_interface_ips': False,
+        'disable_mtu': False,
         'interface_overrides': {},  # keyed by interface name
     }
     if os.path.exists(ADMIN_CONFIG_PATH):
@@ -1112,6 +1115,12 @@ def toggle_nat(interface_name):
         flash("iptables (and nsenter if in container) command not found.", "error")
         return redirect(url_for('index'))
 
+    # Honour admin per-interface NAT disable
+    cfg = load_admin_config()
+    if cfg.get('interface_overrides', {}).get(interface_name, {}).get('hide_nat'):
+        flash(f"NAT control is disabled for {interface_name} by admin.", "error")
+        return redirect(url_for('index'))
+
     action = request.form.get('action')
     display_name = get_interface_alias(interface_name)
 
@@ -1174,8 +1183,10 @@ def routes_page():
         routes_v6 = parse_routes(6)
         interfaces = list_interfaces()
         hostname = socket.gethostname()
+        cfg = load_admin_config()
         return render_template('routes.html', routes_v4=routes_v4, routes_v6=routes_v6,
-                               interfaces=interfaces, hostname=hostname)
+                               interfaces=interfaces, hostname=hostname,
+                               disable_routes=cfg.get('disable_routes', False))
     except Exception as e:
         logging.error(f"Error in routes_page: {str(e)}")
         flash(f"Error loading route table: {str(e)}", "error")
@@ -1184,6 +1195,9 @@ def routes_page():
 
 @app.route('/routes/add', methods=['POST'])
 def add_route_handler():
+    if load_admin_config().get('disable_routes'):
+        flash("Route modifications are disabled by admin.", "error")
+        return redirect(url_for('routes_page'))
     try:
         destination = request.form.get('destination', '').strip()
         gateway     = request.form.get('gateway', '').strip()
@@ -1223,6 +1237,9 @@ def add_route_handler():
 
 @app.route('/routes/del', methods=['POST'])
 def del_route_handler():
+    if load_admin_config().get('disable_routes'):
+        flash("Route modifications are disabled by admin.", "error")
+        return redirect(url_for('routes_page'))
     try:
         destination = request.form.get('destination', '').strip()
         gateway     = request.form.get('gateway', '').strip()
@@ -1340,8 +1357,12 @@ def interface_detail(name):
         mtu = get_mtu(name)
         latency, loss, jitter, bandwidth = get_qdisc_settings(name)
         tc_available = is_tc_available()
+        tcpdump_available = is_tcpdump_available()
+        iptables_available = is_iptables_available()
+        nat_status = get_nat_status(name)
         cfg = load_admin_config()
         iface_ov = cfg.get('interface_overrides', {}).get(name, {})
+        tools_column_disabled = cfg.get('disable_tools_column', False)
         return render_template('interface.html',
                                hostname=hostname,
                                iface_name=name,
@@ -1354,6 +1375,12 @@ def interface_detail(name):
                                jitter=jitter,
                                bandwidth=bandwidth,
                                tc_available=tc_available,
+                               tcpdump_available=tcpdump_available,
+                               iptables_available=iptables_available,
+                               nat_status=nat_status,
+                               tools_column_disabled=tools_column_disabled,
+                               disable_interface_ips=cfg.get('disable_interface_ips', False),
+                               disable_mtu=cfg.get('disable_mtu', False),
                                iface_override=iface_ov)
     except Exception as e:
         logging.error(f"Error in interface_detail for {name}: {e}")
@@ -1372,6 +1399,9 @@ def interface_stats(name):
 
 @app.route('/interface/<name>/add_addr', methods=['POST'])
 def interface_add_addr(name):
+    if load_admin_config().get('disable_interface_ips'):
+        flash("IP address changes are disabled by admin.", "error")
+        return redirect(url_for('interface_detail', name=name))
     address = request.form.get('address', '').strip()
     if not address:
         flash("Address is required (e.g. 192.168.1.10/24 or 2001:db8::1/64)", "error")
@@ -1386,6 +1416,9 @@ def interface_add_addr(name):
 
 @app.route('/interface/<name>/set_mtu', methods=['POST'])
 def interface_set_mtu(name):
+    if load_admin_config().get('disable_mtu'):
+        flash("MTU changes are disabled by admin.", "error")
+        return redirect(url_for('interface_detail', name=name))
     raw = request.form.get('mtu', '').strip()
     try:
         mtu = int(raw)
@@ -1404,6 +1437,9 @@ def interface_set_mtu(name):
 
 @app.route('/interface/<name>/del_addr', methods=['POST'])
 def interface_del_addr(name):
+    if load_admin_config().get('disable_interface_ips'):
+        flash("IP address changes are disabled by admin.", "error")
+        return redirect(url_for('interface_detail', name=name))
     address = request.form.get('address', '').strip()
     if not address:
         flash("No address specified.", "error")
@@ -1430,6 +1466,8 @@ def _check_admin_auth(username, password):
 def _require_admin_auth(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
+        if not ADMIN_PASSWORD:
+            return f(*args, **kwargs)  # no password set — open access
         auth = request.authorization
         if not auth or not _check_admin_auth(auth.username, auth.password):
             return Response(
@@ -1467,8 +1505,11 @@ def admin_save():
     # Global settings
     hidden_raw = request.form.get('hidden_interfaces', '')
     cfg['hidden_interfaces'] = [i.strip() for i in hidden_raw.split(',') if i.strip()]
-    cfg['disable_tools_column'] = 'disable_tools_column' in request.form
-    cfg['default_theme'] = request.form.get('default_theme', '')
+    cfg['disable_tools_column']   = 'disable_tools_column'   in request.form
+    cfg['default_theme']          = request.form.get('default_theme', '')
+    cfg['disable_routes']         = 'disable_routes'         in request.form
+    cfg['disable_interface_ips']  = 'disable_interface_ips'  in request.form
+    cfg['disable_mtu']            = 'disable_mtu'            in request.form
 
     # Per-interface overrides — rebuild from form
     overrides = {}

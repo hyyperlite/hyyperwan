@@ -74,6 +74,7 @@
     <div id="panel-ipv4" class="tab-panel active">
 
         <!-- Add IPv4 route form -->
+        {% if not disable_routes %}
         <div class="add-route-form">
             <h3>Add IPv4 Route</h3>
             <form action="{{ url_for('add_route_handler') }}" method="post">
@@ -110,6 +111,7 @@
                 </div>
             </form>
         </div>
+        {% endif %}
 
         <!-- IPv4 route table -->
         <div class="table-wrap">
@@ -122,7 +124,7 @@
                         <th>Proto</th>
                         <th>Scope</th>
                         <th>Metric</th>
-                        <th>Action</th>
+                        {% if not disable_routes %}<th>Action</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -134,6 +136,7 @@
                     <td class="route-proto">{{ route.proto or '—' }}</td>
                     <td class="route-proto">{{ route.scope or '—' }}</td>
                     <td class="route-metric">{{ route.metric or '—' }}</td>
+                    {% if not disable_routes %}
                     <td>
                         {% if route.proto != 'kernel' %}
                         <form action="{{ url_for('del_route_handler') }}" method="post"
@@ -148,10 +151,11 @@
                         <span class="tool-unavailable">kernel</span>
                         {% endif %}
                     </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
                 {% if not routes_v4 %}
-                <tr><td colspan="7" class="no-data">No IPv4 routes found</td></tr>
+                <tr><td colspan="{% if disable_routes %}6{% else %}7{% endif %}" class="no-data">No IPv4 routes found</td></tr>
                 {% endif %}
                 </tbody>
             </table>
@@ -164,6 +168,7 @@
     <div id="panel-ipv6" class="tab-panel">
 
         <!-- Add IPv6 route form -->
+        {% if not disable_routes %}
         <div class="add-route-form">
             <h3>Add IPv6 Route</h3>
             <form action="{{ url_for('add_route_handler') }}" method="post">
@@ -200,6 +205,7 @@
                 </div>
             </form>
         </div>
+        {% endif %}
 
         <!-- IPv6 route table -->
         <div class="table-wrap">
@@ -212,7 +218,7 @@
                         <th>Proto</th>
                         <th>Scope</th>
                         <th>Metric</th>
-                        <th>Action</th>
+                        {% if not disable_routes %}<th>Action</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -224,6 +230,7 @@
                     <td class="route-proto">{{ route.proto or '—' }}</td>
                     <td class="route-proto">{{ route.scope or '—' }}</td>
                     <td class="route-metric">{{ route.metric or '—' }}</td>
+                    {% if not disable_routes %}
                     <td>
                         {% if route.proto != 'kernel' %}
                         <form action="{{ url_for('del_route_handler') }}" method="post"
@@ -238,10 +245,11 @@
                         <span class="tool-unavailable">kernel</span>
                         {% endif %}
                     </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
                 {% if not routes_v6 %}
-                <tr><td colspan="7" class="no-data">No IPv6 routes found</td></tr>
+                <tr><td colspan="{% if disable_routes %}6{% else %}7{% endif %}" class="no-data">No IPv6 routes found</td></tr>
                 {% endif %}
                 </tbody>
             </table>

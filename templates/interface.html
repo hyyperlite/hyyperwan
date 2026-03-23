@@ -184,6 +184,14 @@
             color: var(--text-primary);
         }
         .imp-field input[type="text"]:focus { outline: none; border-color: var(--accent); }
+        .imp-field input[type="text"]:disabled,
+        .imp-field select:disabled {
+            background: var(--btn-disabled-bg) !important;
+            color: var(--btn-disabled-text) !important;
+            border-color: var(--border) !important;
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
 
         .temp-warning {
             background: var(--warning-bg);
@@ -240,6 +248,8 @@
     {% if tc_available %}
     <div class="detail-section">
         <div class="detail-section-title">TC Impairments</div>
+        <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
+        <div style="flex:1; min-width:0;">
 
         <!-- Current status badges -->
         <div class="impairment-status">
@@ -307,11 +317,13 @@
                     </div>
                 </div>
                 <div class="imp-field imp-actions">
+                    {% set all_imp_disabled = iface_override.get('hide_latency') and iface_override.get('hide_loss') and iface_override.get('hide_jitter') and iface_override.get('hide_bandwidth') %}
                     <label>&nbsp;</label>
                     <div style="display:flex; gap:6px;">
-                        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-                        <button type="button" class="btn btn-secondary btn-sm"
-                                onclick="submitImpairmentRemove()">Remove</button>
+                        <button type="submit" class="btn btn-primary btn-sm"
+                                {% if all_imp_disabled %}disabled title="All impairments are disabled for this interface by admin"{% endif %}>Apply</button>
+                        <button type="button" class="btn btn-remove btn-sm"
+                                {% if all_imp_disabled %}disabled title="All impairments are disabled for this interface by admin"{% else %}onclick="submitImpairmentRemove()"{% endif %}>Remove</button>
                     </div>
                 </div>
             </div>
@@ -319,6 +331,56 @@
         <form id="imp-remove-form" action="{{ url_for('remove_interface') }}" method="post">
             <input type="hidden" name="interface" value="{{ iface_name }}">
         </form>
+        </div>{# end flex:1 impairments column #}
+
+        {# Tools buttons — right side of TC Impairments section #}
+        {% if not tools_column_disabled %}
+        <div style="display:flex; flex-direction:column; gap:8px; padding-top:2px; min-width:96px;">
+            <span style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-muted); margin-bottom:2px;">Tools</span>
+
+            {# Capture #}
+            {% if tcpdump_available %}
+            <button type="button" class="btn btn-capture btn-sm"
+                    {% if iface_override.get('hide_capture') %}
+                    disabled title="Capture is disabled for this interface by admin"
+                    {% else %}
+                    onclick="openCaptureModal('{{ iface_name }}', '{{ iface_alias }}')"
+                    title="Start a tcpdump packet capture on this interface"
+                    {% endif %}>
+                Capture
+            </button>
+            {% else %}
+            <span class="tool-unavailable">tcpdump<br>not installed</span>
+            {% endif %}
+
+            {# NAT #}
+            {% if iptables_available %}
+            {% if iface_override.get('hide_nat') %}
+            <button type="button"
+                    class="btn btn-sm {% if nat_status %}nat-on{% else %}nat-off{% endif %}"
+                    disabled
+                    title="NAT control is disabled for this interface by admin. Current status: {{ 'ON' if nat_status else 'OFF' }}">
+                {{ 'NAT ON' if nat_status else 'NAT OFF' }}
+            </button>
+            {% else %}
+            <form action="{{ url_for('toggle_nat', interface_name=iface_name) }}" method="POST"
+                  onsubmit="return confirm('{{ 'Disable' if nat_status else 'Enable' }} Source NAT on {{ iface_alias if iface_alias else iface_name }}?')">
+                <input type="hidden" name="action" value="{{ 'disable' if nat_status else 'enable' }}">
+                <button type="submit"
+                        class="btn btn-sm {% if nat_status %}nat-on{% else %}nat-off{% endif %}"
+                        title="{% if nat_status %}Source NAT (Masquerade) is ENABLED — click to disable.{% else %}Source NAT (Masquerade) is DISABLED — click to enable.{% endif %}"
+                        style="width:100%;">
+                    {{ 'NAT ON' if nat_status else 'NAT OFF' }}
+                </button>
+            </form>
+            {% endif %}
+            {% else %}
+            <button class="btn btn-sm" disabled title="iptables not available">NAT N/A</button>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        </div>{# end outer flex row #}
     </div>
     {% endif %}
 
@@ -351,6 +413,7 @@
                     </span>
                 </td>
                 <td><span class="addr-mono">{{ addr.address }}</span></td>
+                {% if not disable_interface_ips %}
                 <td>
                     <form action="{{ url_for('interface_del_addr', name=iface_name) }}" method="post"
                           style="display:inline"
@@ -359,6 +422,7 @@
                         <button type="submit" class="btn btn-sm btn-danger">Remove</button>
                     </form>
                 </td>
+                {% endif %}
             </tr>
             {% endfor %}
             </tbody>
@@ -368,12 +432,14 @@
         {% endif %}
 
         <!-- Add address form -->
+        {% if not disable_interface_ips %}
         <form action="{{ url_for('interface_add_addr', name=iface_name) }}" method="post"
               class="add-addr-form">
             <span class="add-addr-label">Add address:</span>
             <input type="text" name="address" placeholder="e.g. 192.168.1.10/24 or 2001:db8::1/64" required>
             <button type="submit" class="btn btn-primary btn-sm">Add</button>
         </form>
+        {% endif %}
     </div>
 
     <!-- ===================================================================
@@ -381,6 +447,14 @@
          =================================================================== -->
     <div class="detail-section">
         <div class="detail-section-title">MTU</div>
+        {% if disable_mtu %}
+        <div class="add-addr-form">
+            <span class="add-addr-label">Current MTU:</span>
+            <span class="addr-mono" style="color:var(--text-primary); min-width:50px">
+                {{ mtu if mtu is not none else '—' }}
+            </span>
+        </div>
+        {% else %}
         <form action="{{ url_for('interface_set_mtu', name=iface_name) }}" method="post"
               class="add-addr-form"
               onsubmit="return confirm('Set MTU on {{ iface_name }} to ' + this.mtu.value + '?')">
@@ -398,9 +472,10 @@
                    required>
             <button type="submit" class="btn btn-primary btn-sm">Apply</button>
         </form>
+        {% endif %}
         <p style="font-size:0.78rem; color:var(--text-muted); margin-top:10px;">
             Common values: 1500 (Ethernet), 9000 (jumbo frames), 1492 (PPPoE), 576 (legacy WAN).
-            Changes are temporary and will not survive a reboot.
+            {% if not disable_mtu %}Changes are temporary and will not survive a reboot.{% endif %}
         </p>
     </div>
 
@@ -429,6 +504,51 @@
     </div>
 
 </main>
+
+{% if not tools_column_disabled and tcpdump_available and not iface_override.get('hide_capture') %}
+<!-- Packet Capture Modal -->
+<div id="captureModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-content">
+        <button class="modal-close" onclick="handleModalClose()" aria-label="Close">&times;</button>
+        <div class="modal-title" id="captureModalTitle">Packet Capture</div>
+        <form id="captureForm">
+            <input type="hidden" id="captureInterface" name="interface" value="{{ iface_name }}">
+            <div class="form-group">
+                <label for="hostFilter">Host filter (comma-separated IPs)</label>
+                <input type="text" id="hostFilter" name="host_filter" placeholder="e.g. 192.168.1.10, 10.0.0.5">
+                <div class="filter-logic">
+                    <span>Multiple hosts:</span>
+                    <label><input type="radio" name="host_filter_logic" value="and"> AND</label>
+                    <label><input type="radio" name="host_filter_logic" value="or" checked> OR</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="networkFilter">Network filter (comma-separated CIDRs)</label>
+                <input type="text" id="networkFilter" name="network_filter" placeholder="e.g. 192.168.1.0/24, 10.0.0.0/8">
+                <div class="filter-logic">
+                    <span>Multiple networks:</span>
+                    <label><input type="radio" name="network_filter_logic" value="and"> AND</label>
+                    <label><input type="radio" name="network_filter_logic" value="or" checked> OR</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="portFilter">Port filter (comma-separated ports)</label>
+                <input type="text" id="portFilter" name="port_filter" placeholder="e.g. 80, 443, 22">
+                <div class="filter-logic">
+                    <span>Multiple ports:</span>
+                    <label><input type="radio" name="port_filter_logic" value="and"> AND</label>
+                    <label><input type="radio" name="port_filter_logic" value="or" checked> OR</label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" id="startCaptureBtn" class="btn btn-success">Start Capture</button>
+                <button type="button" id="stopCaptureBtn" class="btn btn-danger" disabled>Stop &amp; Download</button>
+            </div>
+            <div id="captureStatus" class="capture-status"></div>
+        </form>
+    </div>
+</div>
+{% endif %}
 
 <script>
 // ---- Impairment remove ---------------------------------------------------
@@ -601,6 +721,113 @@ document.addEventListener('visibilitychange', () => {
         clearInterval(pollInterval);
     }
 });
+
+// ---- Packet Capture Modal (only wired up when modal is present) ----------
+{% if not tools_column_disabled and tcpdump_available and not iface_override.get('hide_capture') %}
+let activeCaptureId  = null;
+let captureInterval  = null;
+let captureStartTime = null;
+
+function openCaptureModal(ifaceName, ifaceAlias) {
+    document.getElementById('captureStatus').className = 'capture-status';
+    document.getElementById('captureStatus').textContent = '';
+    document.getElementById('startCaptureBtn').disabled = false;
+    document.getElementById('stopCaptureBtn').disabled  = true;
+    document.getElementById('hostFilter').value    = '';
+    document.getElementById('networkFilter').value = '';
+    document.getElementById('portFilter').value    = '';
+    document.querySelector('[name="host_filter_logic"][value="or"]').checked    = true;
+    document.querySelector('[name="network_filter_logic"][value="or"]').checked = true;
+    document.querySelector('[name="port_filter_logic"][value="or"]').checked    = true;
+    const title = ifaceAlias && ifaceAlias !== ifaceName && ifaceAlias !== ''
+        ? `Packet Capture: ${ifaceName} (${ifaceAlias})`
+        : `Packet Capture: ${ifaceName}`;
+    document.getElementById('captureModalTitle').textContent = title;
+    document.getElementById('captureModal').classList.add('open');
+}
+
+function handleModalClose() {
+    if (activeCaptureId) {
+        if (!confirm('A capture is running. Stop it?')) return;
+        stopCapture();
+    }
+    document.getElementById('captureModal').classList.remove('open');
+}
+
+document.getElementById('captureModal').addEventListener('click', function (e) {
+    if (e.target === this) handleModalClose();
+});
+
+document.getElementById('startCaptureBtn').addEventListener('click', function () {
+    const formData = new FormData(document.getElementById('captureForm'));
+    const statusEl = document.getElementById('captureStatus');
+    statusEl.className = 'capture-status info visible';
+    statusEl.textContent = 'Starting capture…';
+    this.disabled = true;
+    fetch('/start_capture', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                activeCaptureId = data.capture_id;
+                captureStartTime = Date.now();
+                statusEl.className = 'capture-status success visible';
+                statusEl.textContent = 'Capturing… (limit: 10 000 packets)';
+                document.getElementById('stopCaptureBtn').disabled = false;
+                captureInterval = setInterval(() => {
+                    const secs = Math.floor((Date.now() - captureStartTime) / 1000);
+                    statusEl.textContent = `Capturing… ${secs}s elapsed (limit: 10 000 packets)`;
+                }, 2000);
+            } else {
+                statusEl.className = 'capture-status error visible';
+                statusEl.textContent = 'Error: ' + data.error;
+                document.getElementById('startCaptureBtn').disabled = false;
+            }
+        })
+        .catch(err => {
+            statusEl.className = 'capture-status error visible';
+            statusEl.textContent = 'Error: ' + err.message;
+            document.getElementById('startCaptureBtn').disabled = false;
+        });
+});
+
+document.getElementById('stopCaptureBtn').addEventListener('click', stopCapture);
+
+function stopCapture() {
+    if (!activeCaptureId) return;
+    const statusEl = document.getElementById('captureStatus');
+    statusEl.className = 'capture-status info visible';
+    statusEl.textContent = 'Stopping…';
+    clearInterval(captureInterval);
+    captureInterval = null;
+    const cid = activeCaptureId;
+    fetch('/stop_capture/' + cid, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                statusEl.className = 'capture-status success visible';
+                statusEl.textContent = 'Download starting…';
+                setTimeout(() => {
+                    window.location.href = `/download_capture/${cid}?file=${data.file}`;
+                    statusEl.textContent = 'Download started. You can start a new capture.';
+                    activeCaptureId = null;
+                    document.getElementById('startCaptureBtn').disabled = false;
+                    document.getElementById('stopCaptureBtn').disabled  = true;
+                }, 800);
+            } else {
+                statusEl.className = 'capture-status error visible';
+                statusEl.textContent = 'Error: ' + data.error;
+                document.getElementById('startCaptureBtn').disabled = false;
+                document.getElementById('stopCaptureBtn').disabled  = true;
+            }
+        })
+        .catch(err => {
+            statusEl.className = 'capture-status error visible';
+            statusEl.textContent = 'Error: ' + err.message;
+            document.getElementById('startCaptureBtn').disabled = false;
+            document.getElementById('stopCaptureBtn').disabled  = true;
+        });
+}
+{% endif %}
 </script>
 </body>
 </html>

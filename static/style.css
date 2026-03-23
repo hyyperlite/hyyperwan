@@ -60,6 +60,8 @@
     --btn-blue-hover:    #1a4a80;
     --btn-danger-bg:     #5c1010;
     --btn-danger-hover:  #7d1f14;
+    --btn-remove-bg:     #7c4a00;
+    --btn-remove-hover:  #a05c00;
     --btn-disabled-bg:   #2a2a2a;
     --btn-disabled-text: #555555;
 
@@ -124,6 +126,8 @@
     --btn-secondary-hover:#d1d5db;
     --btn-disabled-bg:    #d1d5db;
     --btn-disabled-text:  #9ca3af;
+    --btn-remove-bg:      #d97706;
+    --btn-remove-hover:   #b45309;
 
     --shadow:    0 2px 10px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.15);
@@ -485,6 +489,14 @@ td {
 }
 .apply-form input[type="text"]:focus { outline: none; border-color: var(--accent); }
 .apply-form input[type="text"]::placeholder { color: var(--text-muted); font-size: 0.75rem; }
+.apply-form input[type="text"]:disabled,
+.apply-form select:disabled {
+    background: var(--btn-disabled-bg) !important;
+    color: var(--btn-disabled-text) !important;
+    border-color: var(--border) !important;
+    cursor: not-allowed;
+    opacity: 0.55;
+}
 
 .bw-group { display: flex; gap: 3px; align-items: center; }
 .bw-input { width: 62px !important; }
@@ -499,6 +511,13 @@ td {
     cursor: pointer;
 }
 .bw-unit:focus { outline: none; border-color: var(--accent); }
+.bw-unit:disabled {
+    background: var(--btn-disabled-bg) !important;
+    color: var(--btn-disabled-text) !important;
+    border-color: var(--border) !important;
+    cursor: not-allowed;
+    opacity: 0.55;
+}
 
 /* --------------------------------------------------------------------------
    14. Buttons — base and variants
@@ -542,6 +561,9 @@ td {
 
 .btn-danger    { background: var(--btn-danger-bg);    color: #fff; }
 .btn-danger:hover:not(:disabled)    { background: var(--btn-danger-hover); }
+
+.btn-remove { background: var(--btn-remove-bg); color: #fff; }
+.btn-remove:hover:not(:disabled)   { background: var(--btn-remove-hover); }
 
 .btn-sm { padding: 3px 9px; font-size: 0.75rem; }
 .btn-lg { padding: 9px 22px; font-size: 0.95rem; }

@@ -149,6 +149,7 @@
 
                 <!-- Actions -->
                 {% set ov = iface_overrides.get(interface.name, {}) %}
+                {% set all_imp_disabled = ov.get('hide_latency') and ov.get('hide_loss') and ov.get('hide_jitter') and ov.get('hide_bandwidth') %}
                 <td class="actions-cell">
                     {% if tc_available %}
                     <form action="{{ url_for('apply_interface') }}" method="post" class="apply-form">
@@ -179,9 +180,10 @@
                                     <option value="gbit">gbit</option>
                                 </select>
                             </div>
-                            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-                            <button type="button" class="btn btn-secondary btn-sm"
-                                    onclick="submitRemove('{{ interface.name }}')">Remove</button>
+                            <button type="submit" class="btn btn-primary btn-sm"
+                                    {% if all_imp_disabled %}disabled title="All impairments are disabled for this interface by admin"{% endif %}>Apply</button>
+                            <button type="button" class="btn btn-remove btn-sm"
+                                    {% if all_imp_disabled %}disabled title="All impairments are disabled for this interface by admin"{% else %}onclick="submitRemove('{{ interface.name }}')"{% endif %}>Remove</button>
                         </div>
                     </form>
                     <!-- hidden remove form -->
@@ -209,6 +211,15 @@
                         {% endif %}
 
                         {% if iptables_available %}
+                        {% if ov.get('hide_nat') %}
+                        {# NAT disabled by admin — show read-only status button, no form #}
+                        <button type="button"
+                                class="btn btn-sm {% if interface.nat_status %}nat-on{% else %}nat-off{% endif %}"
+                                disabled
+                                title="NAT control is disabled for this interface by admin. Current status: {{ 'ON' if interface.nat_status else 'OFF' }}">
+                            {{ 'NAT ON' if interface.nat_status else 'NAT OFF' }}
+                        </button>
+                        {% else %}
                         <form action="{{ url_for('toggle_nat', interface_name=interface.name) }}"
                               method="POST"
                               onsubmit="return confirm('{{ 'Disable' if interface.nat_status else 'Enable' }} Source NAT on {{ interface.alias if interface.alias else interface.name }}?')">
@@ -216,10 +227,11 @@
                                    value="{{ 'disable' if interface.nat_status else 'enable' }}">
                             <button type="submit"
                                     class="btn btn-sm {% if interface.nat_status %}nat-on{% else %}nat-off{% endif %}"
-                                    {% if ov.get('hide_nat') %}disabled title="NAT is disabled for this interface by admin"{% else %}title="{% if interface.nat_status %}Source NAT (Masquerade) is ENABLED on {{ interface.alias if interface.alias else interface.name }} — outbound traffic on this interface is masqueraded. Click to disable.{% else %}Source NAT (Masquerade) is DISABLED on {{ interface.alias if interface.alias else interface.name }} — click to enable masquerade for traffic egressing this interface.{% endif %}"{% endif %}>
+                                    title="{% if interface.nat_status %}Source NAT (Masquerade) is ENABLED on {{ interface.alias if interface.alias else interface.name }} — outbound traffic on this interface is masqueraded. Click to disable.{% else %}Source NAT (Masquerade) is DISABLED on {{ interface.alias if interface.alias else interface.name }} — click to enable masquerade for traffic egressing this interface.{% endif %}">
                                 {{ 'NAT ON' if interface.nat_status else 'NAT OFF' }}
                             </button>
                         </form>
+                        {% endif %}
                         {% else %}
                         <button class="btn btn-sm" disabled title="iptables not available">NAT N/A</button>
                         {% endif %}

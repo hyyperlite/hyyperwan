@@ -192,6 +192,27 @@
                 </select>
             </div>
             <div class="admin-note">Applied when a user has no theme stored in their browser localStorage.</div>
+
+            <div class="admin-field">
+                <label for="disable_routes">Disable route modifications</label>
+                <input type="checkbox" id="disable_routes" name="disable_routes"
+                       {% if cfg.disable_routes %}checked{% endif %}>
+            </div>
+            <div class="admin-note">Hides Add Route forms and Delete buttons on the Routes page. Routes remain visible (read-only).</div>
+
+            <div class="admin-field">
+                <label for="disable_interface_ips">Disable IP address changes</label>
+                <input type="checkbox" id="disable_interface_ips" name="disable_interface_ips"
+                       {% if cfg.disable_interface_ips %}checked{% endif %}>
+            </div>
+            <div class="admin-note">Hides Add and Remove address buttons on the Interface detail page. Addresses remain visible.</div>
+
+            <div class="admin-field">
+                <label for="disable_mtu">Disable MTU changes</label>
+                <input type="checkbox" id="disable_mtu" name="disable_mtu"
+                       {% if cfg.disable_mtu %}checked{% endif %}>
+            </div>
+            <div class="admin-note">Hides the MTU Set input and Apply button on the Interface detail page. Current MTU remains visible.</div>
         </div>
 
         <!-- ── Per-Interface Controls ──────────────────────────────── -->
