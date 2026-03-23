@@ -1496,10 +1496,12 @@ def admin():
     except Exception:
         pass
     hostname = socket.gethostname()
+    aliases = load_interface_aliases()
     return render_template('admin.html',
                            hostname=hostname,
                            cfg=cfg,
                            all_interfaces=all_interfaces,
+                           aliases=aliases,
                            admin_password_set=bool(ADMIN_PASSWORD))
 
 @app.route('/admin/save', methods=['POST'])
@@ -1516,8 +1518,9 @@ def admin_save():
     cfg['disable_interface_ips']  = 'disable_interface_ips'  in request.form
     cfg['disable_mtu']            = 'disable_mtu'            in request.form
 
-    # Per-interface overrides — rebuild from form
+    # Per-interface overrides and aliases — rebuild from form
     overrides = {}
+    new_aliases = {}
     all_ifaces = request.form.getlist('iface_names')
     for iface in all_ifaces:
         overrides[iface] = {
@@ -1528,7 +1531,11 @@ def admin_save():
             'hide_loss':      f'hide_loss_{iface}'      in request.form,
             'hide_bandwidth': f'hide_bandwidth_{iface}' in request.form,
         }
+        alias = request.form.get(f'alias_{iface}', '').strip()
+        if alias:
+            new_aliases[iface] = alias
     cfg['interface_overrides'] = overrides
+    save_interface_aliases(new_aliases)
 
     ok, err = save_admin_config(cfg)
     if ok:

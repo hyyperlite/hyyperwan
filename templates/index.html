@@ -87,31 +87,14 @@
             <tr>
                 <!-- Interface name + alias -->
                 <td class="iface-cell">
-                    <div id="alias-display-{{ interface.name }}">
-                        <div class="iface-name-row">
-                            <span class="iface-name">{{ interface.name }}</span>
-                            <a href="{{ url_for('interface_detail', name=interface.name) }}"
-                               class="iface-detail-btn" title="View interface details">&#x2197;</a>
-                        </div>
-                        {% if interface.alias %}
-                        <div class="iface-alias">{{ interface.alias }}</div>
-                        {% endif %}
-                        <button type="button" class="alias-edit-btn"
-                                onclick="toggleAliasForm('{{ interface.name }}')">
-                            {% if interface.alias %}Edit alias{% else %}Add alias{% endif %}
-                        </button>
+                    <div class="iface-name-row">
+                        <span class="iface-name">{{ interface.name }}</span>
+                        <a href="{{ url_for('interface_detail', name=interface.name) }}"
+                           class="iface-detail-btn" title="View interface details">&#x2197;</a>
                     </div>
-                    <div id="alias-form-{{ interface.name }}" class="alias-edit-form" style="display:none">
-                        <form action="{{ url_for('update_interface_alias') }}" method="post"
-                              style="display:contents">
-                            <input type="hidden" name="interface" value="{{ interface.name }}">
-                            <input type="text" name="alias" value="{{ interface.alias }}"
-                                   placeholder="Alias name">
-                            <button type="submit" class="btn btn-sm alias-save-btn">Save</button>
-                            <button type="button" class="btn btn-sm alias-cancel-btn"
-                                    onclick="toggleAliasForm('{{ interface.name }}')">Cancel</button>
-                        </form>
-                    </div>
+                    {% if interface.alias %}
+                    <div class="iface-alias">{{ interface.alias }}</div>
+                    {% endif %}
                 </td>
 
                 <!-- IP Address -->
@@ -347,15 +330,6 @@ function cycleTheme() {
 
 // Initialise button label on load
 (function () { applyTheme(getTheme()); })();
-
-// ---- Alias toggle --------------------------------------------------------
-function toggleAliasForm(name) {
-    const form    = document.getElementById('alias-form-' + name);
-    const display = document.getElementById('alias-display-' + name);
-    const hidden  = form.style.display === 'none' || form.style.display === '';
-    form.style.display    = hidden ? 'flex' : 'none';
-    display.style.display = hidden ? 'none' : 'block';
-}
 
 // ---- Remove form helper --------------------------------------------------
 function submitRemove(ifaceName) {

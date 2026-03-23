@@ -228,6 +228,7 @@
                 <thead>
                     <tr>
                         <th rowspan="2">Interface</th>
+                        <th rowspan="2">Alias</th>
                         <th colspan="2" class="col-sep col-group-label">Tools column</th>
                         <th colspan="4" class="col-sep col-group-label">Impairments</th>
                     </tr>
@@ -247,6 +248,14 @@
                         <td>
                             {{ iface }}
                             <input type="hidden" name="iface_names" value="{{ iface }}">
+                        </td>
+                        <td>
+                            <input type="text" name="alias_{{ iface }}"
+                                   value="{{ aliases.get(iface, '') }}"
+                                   placeholder="Alias…"
+                                   style="width:110px; padding:3px 6px; font-size:0.82rem;
+                                          border-radius:var(--radius); border:1px solid var(--border-strong);
+                                          background:var(--bg-input); color:var(--text-primary);">
                         </td>
                         <td class="col-sep">
                             <input type="checkbox" name="hide_capture_{{ iface }}"
