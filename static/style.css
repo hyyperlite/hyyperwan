@@ -236,6 +236,16 @@ a:hover { text-decoration: underline; }
     white-space: nowrap;
 }
 
+.badge-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.55;
+    margin-right: 2px;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
 .theme-btn {
     padding: 4px 12px;
     font-size: 0.78rem;

@@ -26,8 +26,8 @@
         <a href="{{ url_for('routes_page') }}" class="nav-link">Routes</a>
     </div>
     <div class="navbar-right">
-        <span class="hostname-badge">{{ hostname }}</span>
-        <button class="theme-btn" id="themeBtn" onclick="cycleTheme()">Dark Red</button>
+        <span class="hostname-badge"><span class="badge-label">Host:</span> {{ hostname }}</span>
+        <button class="theme-btn" id="themeBtn" onclick="cycleTheme()"><span class="badge-label">Theme:</span> Dark Red</button>
     </div>
 </nav>
 
@@ -314,7 +314,7 @@ function applyTheme(theme) {
     localStorage.setItem(THEME_KEY, theme);
     const idx = THEMES.indexOf(theme);
     const btn = document.getElementById('themeBtn');
-    if (btn) btn.textContent = THEME_NAMES[idx >= 0 ? idx : 0];
+    if (btn) btn.innerHTML = `<span class="badge-label">Theme:</span> ${THEME_NAMES[idx >= 0 ? idx : 0]}`;
 }
 
 function cycleTheme() {
