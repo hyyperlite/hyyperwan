@@ -62,29 +62,22 @@ docker run -d --name hyyperwan \
   ghcr.io/hyyperlite/hyyperwan:latest
 ```
 
-**HTTPS only (port 8443):**
+**HTTPS only (port 8443) — uses baked-in self-signed certificate:**
 ```bash
 docker run -d --name hyyperwan \
   --net=host --privileged \
   --restart unless-stopped \
   -e ENABLE_HTTP=false \
   -e ENABLE_HTTPS=true \
-  -e SSL_CERT_PATH=/certs/cert.pem \
-  -e SSL_KEY_PATH=/certs/key.pem \
-  -v /path/to/your/certs:/certs \
   ghcr.io/hyyperlite/hyyperwan:latest
 ```
 
-**Both HTTP and HTTPS simultaneously:**
+**Both HTTP and HTTPS simultaneously — uses baked-in self-signed certificate:**
 ```bash
 docker run -d --name hyyperwan \
   --net=host --privileged \
   --restart unless-stopped \
-  -e ENABLE_HTTP=true \
   -e ENABLE_HTTPS=true \
-  -e SSL_CERT_PATH=/certs/cert.pem \
-  -e SSL_KEY_PATH=/certs/key.pem \
-  -v /path/to/your/certs:/certs \
   ghcr.io/hyyperlite/hyyperwan:latest
 ```
 
@@ -96,9 +89,6 @@ docker run -d --name hyyperwan \
   -e HTTP_PORT=80 \
   -e HTTPS_PORT=443 \
   -e ENABLE_HTTPS=true \
-  -e SSL_CERT_PATH=/certs/cert.pem \
-  -e SSL_KEY_PATH=/certs/key.pem \
-  -v /path/to/your/certs:/certs \
   ghcr.io/hyyperlite/hyyperwan:latest
 ```
 
@@ -109,6 +99,29 @@ docker run -d --name hyyperwan \
   --restart unless-stopped \
   -e DISABLE_TOOLS_COLUMN=true \
   ghcr.io/hyyperlite/hyyperwan:latest
+```
+
+**Bring your own certificate (optional):**
+
+The image includes a baked-in self-signed certificate valid for 10 years. If you want to use your own certificate instead, mount it and override the paths:
+```bash
+docker run -d --name hyyperwan \
+  --net=host --privileged \
+  --restart unless-stopped \
+  -e ENABLE_HTTPS=true \
+  -e SSL_CERT_PATH=/certs/cert.pem \
+  -e SSL_KEY_PATH=/certs/key.pem \
+  -v /path/to/your/certs:/certs \
+  ghcr.io/hyyperlite/hyyperwan:latest
+```
+
+To generate a self-signed certificate on your own host:
+```bash
+mkdir -p /etc/hyyperwan/certs
+openssl req -x509 -newkey rsa:4096 -nodes \
+  -out /etc/hyyperwan/certs/cert.pem \
+  -keyout /etc/hyyperwan/certs/key.pem \
+  -days 365
 ```
 
 **Access the application:**
