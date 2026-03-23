@@ -1694,11 +1694,11 @@ if __name__ == '__main__':
     # Build server factories
     def make_http_server():
         logging.info(f"HTTP  listener starting on {host}:{http_port}")
-        return make_server(host, http_port, app)
+        return make_server(host, http_port, app, threaded=True)
 
     def make_https_server():
         logging.info(f"HTTPS listener starting on {host}:{https_port}")
-        return make_server(host, https_port, app, ssl_context=ssl_context)
+        return make_server(host, https_port, app, ssl_context=ssl_context, threaded=True)
 
     try:
         if enable_http and enable_https:

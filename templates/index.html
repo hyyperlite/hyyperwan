@@ -430,18 +430,19 @@ function stopCapture() {
     captureInterval = null;
 
     const cid = activeCaptureId;
+    activeCaptureId = null;
+    document.getElementById('stopCaptureBtn').disabled = true;
+
     fetch('/stop_capture/' + cid, { method: 'POST' })
         .then(r => r.json())
         .then(data => {
             if (data.success) {
                 statusEl.className = 'capture-status success visible';
                 statusEl.textContent = 'Download starting…';
+                window.location.href = `/download_capture/${cid}?file=${data.file}`;
                 setTimeout(() => {
-                    window.location.href = `/download_capture/${cid}?file=${data.file}`;
                     statusEl.textContent = 'Download started. You can start a new capture.';
-                    activeCaptureId = null;
                     document.getElementById('startCaptureBtn').disabled = false;
-                    document.getElementById('stopCaptureBtn').disabled  = true;
                 }, 800);
             } else {
                 statusEl.className = 'capture-status error visible';
