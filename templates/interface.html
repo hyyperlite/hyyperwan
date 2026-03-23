@@ -390,10 +390,12 @@
     <div class="detail-section">
         <div class="detail-section-title">IP Addresses</div>
 
+        {% if not disable_interface_ips %}
         <div class="temp-warning">
             &#9888; Address changes made here are temporary and will not survive a reboot.
             Use your distribution's network configuration tools (e.g. Netplan, NetworkManager) for persistent changes.
         </div>
+        {% endif %}
 
         {% if addresses %}
         <table class="addr-table">

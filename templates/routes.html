@@ -47,7 +47,7 @@
     {% endif %}
     {% endwith %}
 
-    <!-- Temporary-routes warning (always shown) -->
+    {% if not disable_routes %}
     <div class="temp-route-warning">
         <strong>&#9888; Routes added or removed here are temporary</strong> and will not survive a
         reboot. For persistent routes, configure your system's network manager
@@ -55,6 +55,7 @@
         <code>/etc/network/interfaces</code> on Debian). These vary by distribution and are
         outside the scope of this tool.
     </div>
+    {% endif %}
 
     <div class="section-header">
         <span class="section-title">Host Route Table</span>
