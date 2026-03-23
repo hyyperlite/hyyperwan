@@ -125,6 +125,35 @@ docker logs hyyperwan
 
 ---
 
+### Option 1b: Docker — Air-gapped / No Internet Access
+
+If the target server has no internet access, pull and export the image on a machine that does, then transfer it.
+
+**On a machine with internet access:**
+```bash
+docker pull ghcr.io/hyyperlite/hyyperwan:latest
+docker save ghcr.io/hyyperlite/hyyperwan:latest | gzip > hyyperwan.tar.gz
+```
+
+The image can also be downloaded directly from the GitHub Packages page:
+**https://github.com/hyyperlite/hyyperwan/pkgs/container/hyyperwan**
+
+**Transfer the file to the target server** (scp, USB, etc.):
+```bash
+scp hyyperwan.tar.gz user@target-server:/tmp/
+```
+
+**On the target server, load and run:**
+```bash
+docker load < /tmp/hyyperwan.tar.gz
+docker run -d --name hyyperwan \
+  --net=host --privileged \
+  --restart unless-stopped \
+  ghcr.io/hyyperlite/hyyperwan:latest
+```
+
+---
+
 ### Option 2: Build Docker Image from Source
 
 Clone the repository and build the single unified Dockerfile:
