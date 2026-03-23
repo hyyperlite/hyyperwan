@@ -273,6 +273,7 @@ All configuration is done through environment variables — in the `.env` file f
 | `SSL_CERT_PATH` | _(unset)_ | Path to TLS certificate (required when ENABLE_HTTPS=true) |
 | `SSL_KEY_PATH` | _(unset)_ | Path to TLS private key (required when ENABLE_HTTPS=true) |
 | `DISABLE_TOOLS_COLUMN` | `false` | Hide the Tools column (packet capture + NAT buttons) |
+| `IGNORE_INTERFACES` | `docker0` | Comma-separated list of interfaces to hide from the UI |
 | `FLASK_DEBUG` | `false` | Enable Flask debug mode |
 | `USE_HTTPS` | `false` | Legacy alias: `true` is equivalent to `ENABLE_HTTPS=true` + `ENABLE_HTTP=false` |
 | `FLASK_RUN_PORT` | _(unset)_ | Legacy alias for `HTTP_PORT` |

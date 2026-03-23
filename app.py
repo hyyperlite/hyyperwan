@@ -39,8 +39,8 @@ app.secret_key = 'your_secret_key'  # Needed for flashing messages
 # Path to store interface aliases
 ALIASES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'interface_aliases.json')
 
-# Path to store ignored interfaces
-IGNORED_INTERFACES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ignored_interfaces.json')
+# Interfaces to hide from the UI — comma-separated env var, default: docker0
+IGNORED_INTERFACES = [i.strip() for i in os.environ.get('IGNORE_INTERFACES', 'docker0').split(',') if i.strip()]
 
 # Path to store temporary pcap files - use /tmp directory
 PCAP_DIR = '/tmp/hyyperwan_pcaps'
@@ -206,34 +206,6 @@ def compute_tbf_burst(bandwidth_str):
     return f"{burst_bytes}b"
 
 
-def load_ignored_interfaces():
-    """
-    Load ignored interface names from the JSON file.
-    Returns a list of interface names to ignore.
-    """
-    try:
-        if os.path.exists(IGNORED_INTERFACES_FILE):
-            with open(IGNORED_INTERFACES_FILE, 'r') as f:
-                ignored = json.load(f)
-                if isinstance(ignored, list):
-                    return ignored
-                else:
-                    logging.error(f"Invalid format in {IGNORED_INTERFACES_FILE}: Expected a JSON list.")
-                    return []
-        else:
-            # If the file doesn't exist, create it with default ["docker0"]
-            default_ignored = ["docker0"]
-            try:
-                with open(IGNORED_INTERFACES_FILE, 'w') as f:
-                    json.dump(default_ignored, f, indent=4)
-                logging.info(f"Created default ignored interfaces file: {IGNORED_INTERFACES_FILE}")
-                return default_ignored
-            except Exception as e:
-                logging.error(f"Error creating default ignored interfaces file: {str(e)}")
-                return [] # Return empty list on error
-    except Exception as e:
-        logging.error(f"Error loading ignored interfaces: {str(e)}")
-        return []
 
 def list_interfaces():
     interfaces = []
@@ -242,11 +214,9 @@ def list_interfaces():
         output = result.stdout
         log_command(['ip', '-j', 'addr'], output)
         
-        # Load interface aliases and ignored interfaces
+        # Load interface aliases; build ignored set (always include 'lo')
         aliases = load_interface_aliases()
-        ignored_interfaces = load_ignored_interfaces()
-        # Always ignore 'lo' by default
-        ignored_interfaces_set = set(ignored_interfaces + ['lo'])
+        ignored_interfaces_set = set(IGNORED_INTERFACES + ['lo'])
         
         try:
             data = json.loads(output)

@@ -13,3 +13,5 @@ app.log
 interface_aliases.json
 *.swp
 .env
+certificates/
+ignored_interfaces.json
