@@ -535,10 +535,35 @@ td {
 
 .tools-stack { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
 
-.nat-on  { background: var(--btn-info-bg) !important; }
-.nat-on:hover:not(:disabled)  { background: var(--btn-info-hover) !important; }
-.nat-off { background: var(--btn-danger-bg) !important; }
-.nat-off:hover:not(:disabled) { background: var(--btn-danger-hover) !important; }
+/*
+ * Capture / NAT / Reset All use fixed colors that don't shift with the theme.
+ * NAT ON  = green  (masquerade active)
+ * NAT OFF = red    (masquerade inactive)
+ * Capture = blue
+ */
+.btn-capture {
+    background: #1565c0 !important;
+    color: #fff !important;
+}
+.btn-capture:hover:not(:disabled) { background: #1e88e5 !important; }
+
+.nat-on {
+    background: #15803d !important;
+    color: #fff !important;
+}
+.nat-on:hover:not(:disabled) { background: #16a34a !important; }
+
+.nat-off {
+    background: #c0392b !important;
+    color: #fff !important;
+}
+.nat-off:hover:not(:disabled) { background: #e74c3c !important; }
+
+.btn-reset-all {
+    background: #c0392b !important;
+    color: #fff !important;
+}
+.btn-reset-all:hover:not(:disabled) { background: #e74c3c !important; }
 
 .tool-unavailable {
     font-size: 0.72rem;

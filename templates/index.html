@@ -189,7 +189,7 @@
                 <td class="tools-cell">
                     <div class="tools-stack">
                         {% if tcpdump_available %}
-                        <button type="button" class="btn btn-info btn-sm"
+                        <button type="button" class="btn btn-capture btn-sm"
                                 onclick="openCaptureModal('{{ interface.name }}', '{{ interface.alias }}')"
                                 title="Start a tcpdump packet capture on this interface">
                             Capture
@@ -206,7 +206,7 @@
                                    value="{{ 'disable' if interface.nat_status else 'enable' }}">
                             <button type="submit"
                                     class="btn btn-sm {% if interface.nat_status %}nat-on{% else %}nat-off{% endif %}"
-                                    title="{% if interface.nat_status %}NAT/Masquerade is ON — click to disable{% else %}NAT/Masquerade is OFF — click to enable{% endif %}">
+                                    title="{% if interface.nat_status %}Source NAT (Masquerade) is ENABLED on {{ interface.alias if interface.alias else interface.name }} — outbound traffic on this interface is masqueraded. Click to disable.{% else %}Source NAT (Masquerade) is DISABLED on {{ interface.alias if interface.alias else interface.name }} — click to enable masquerade for traffic egressing this interface.{% endif %}">
                                 {{ 'NAT ON' if interface.nat_status else 'NAT OFF' }}
                             </button>
                         </form>
@@ -229,7 +229,7 @@
     <div class="reset-container">
         <form action="{{ url_for('reset_all_interfaces') }}" method="post"
               onsubmit="return confirm('Reset ALL tc settings on all interfaces?')">
-            <button type="submit" class="btn btn-danger btn-lg">Reset All Interfaces</button>
+            <button type="submit" class="btn btn-reset-all btn-lg">Reset All Interfaces</button>
         </form>
     </div>
 
