@@ -1830,6 +1830,43 @@ def admin_save():
     return redirect(url_for('admin'))
 
 
+@app.route('/admin/import_aliases', methods=['POST'])
+@_require_admin_auth
+def admin_import_aliases():
+    raw = request.form.get('alias_import_str', '').strip()
+    if not raw:
+        flash('No alias string provided.', 'error')
+        return redirect(url_for('admin'))
+    # Parse "eth0=WAN,eth1=LAN" — same format as INTERFACE_ALIASES env var
+    imported = {}
+    errors = []
+    for pair in raw.split(','):
+        pair = pair.strip()
+        if not pair:
+            continue
+        if '=' not in pair:
+            errors.append(f'Skipped invalid entry (no "="): {pair!r}')
+            continue
+        iface, alias = pair.split('=', 1)
+        iface = iface.strip()
+        alias = alias.strip()
+        if iface and alias:
+            imported[iface] = alias
+        else:
+            errors.append(f'Skipped empty interface or alias: {pair!r}')
+    if imported:
+        # Merge into existing aliases — imported values win for any matching interface
+        existing = load_interface_aliases()
+        existing.update(imported)
+        save_interface_aliases(existing)
+        flash(f'Imported {len(imported)} alias(es): {", ".join(f"{k}={v}" for k, v in imported.items())}', 'success')
+    else:
+        flash('No valid aliases found in the provided string.', 'error')
+    for e in errors:
+        flash(e, 'warning')
+    return redirect(url_for('admin'))
+
+
 def cleanup_on_exit():
     # First stop any active captures
     for capture_id, capture_info in active_captures.items():

@@ -310,12 +310,14 @@
 
     </form>
 
-    <!-- ── Interface Aliases Export ────────────────────────────────── -->
+    <!-- ── Interface Aliases Export / Import ───────────────────────── -->
     <div class="admin-section" style="margin-top:1.5rem;">
-        <h2>Export Interface Aliases</h2>
-        <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:1rem;">
-            Use this value as the <code>INTERFACE_ALIASES</code> environment variable when starting a new
-            instance to seed the same aliases without a volume mount.
+        <h2>Interface Aliases — Export / Import</h2>
+
+        <!-- Export -->
+        <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.6rem;">
+            <strong style="color:var(--text-secondary);">Export</strong> — copy this string to use as
+            <code>INTERFACE_ALIASES</code> when starting a new instance, or to paste into the Import field on another instance.
         </p>
         {% set alias_pairs = [] %}
         {% for iface, alias in aliases.items() %}
@@ -324,19 +326,33 @@
             {% endif %}
         {% endfor %}
         {% if alias_pairs %}
-        <div style="display:flex; align-items:center; gap:0.75rem;">
+        <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1.25rem;">
             <code id="aliasExportStr"
                   style="flex:1; background:var(--bg-input); border:1px solid var(--border-strong);
                          border-radius:var(--radius); padding:0.4rem 0.75rem; font-size:0.85rem;
                          color:var(--text-primary); word-break:break-all;">{{ alias_pairs | join(',') }}</code>
             <button type="button" class="btn btn-secondary" onclick="copyAliases(this)">Copy</button>
         </div>
-        <div class="admin-note" style="padding-left:0; margin-top:0.5rem;">
-            Example: <code>docker run -e INTERFACE_ALIASES="{{ alias_pairs | join(',') }}" ...</code>
-        </div>
         {% else %}
-        <p style="color:var(--text-muted); font-size:0.85rem;">No aliases configured yet. Set aliases in the Per-Interface Controls table above and save.</p>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:1.25rem;">No aliases configured yet. Set aliases in the Per-Interface Controls table above and save.</p>
         {% endif %}
+
+        <!-- Import -->
+        <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.6rem;">
+            <strong style="color:var(--text-secondary);">Import</strong> — paste an alias string from another instance
+            (e.g. <code>eth0=WAN,eth1=LAN</code>) and click Apply. Imported aliases are merged into the current
+            aliases — existing aliases for interfaces not in the pasted string are kept.
+        </p>
+        <form method="POST" action="{{ url_for('admin_import_aliases') }}">
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+                <input type="text" name="alias_import_str" id="aliasImportStr"
+                       placeholder="eth0=WAN,eth1=LAN-1,eth2=LAN-2"
+                       style="flex:1; background:var(--bg-input); border:1px solid var(--border-strong);
+                              border-radius:var(--radius); color:var(--text-primary);
+                              padding:0.4rem 0.75rem; font-size:0.85rem;">
+                <button type="submit" class="btn btn-primary">Apply</button>
+            </div>
+        </form>
     </div>
 
 </main>
