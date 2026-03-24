@@ -391,6 +391,16 @@ def apply_qdisc_filtered(interface, latency, loss, jitter, src_cidr, dst_cidr):
         logging.error(f"Error in apply_qdisc_filtered for {interface}: {str(e)}")
 
 
+def split_bandwidth(bandwidth_str):
+    """Split '20Mbit' -> ('20', 'mbit'), ('10kbit') -> ('10', 'kbit'). Returns ('', 'mbit') if None/empty."""
+    if not bandwidth_str:
+        return '', 'mbit'
+    m = re.match(r'^(\d+(?:\.\d+)?)\s*(kbit|mbit|gbit)', bandwidth_str, re.IGNORECASE)
+    if m:
+        return m.group(1), m.group(2).lower()
+    return bandwidth_str, 'mbit'
+
+
 def compute_tbf_burst(bandwidth_str):
     """Calculate an appropriate TBF burst size for a given bandwidth string like '10mbit'."""
     match = re.match(r'^(\d+(?:\.\d+)?)(kbit|mbit|gbit)$', bandwidth_str.lower())
@@ -446,6 +456,7 @@ def list_interfaces():
                         latency, loss, jitter, bandwidth = get_qdisc_settings(interface_name)
                         src_filter, dst_filter = get_qdisc_filter(interface_name)
                         nat_status = get_nat_status(interface_name)
+                        bw_value, bw_unit = split_bandwidth(bandwidth)
                         interfaces.append({
                             'name': interface_name,
                             'alias': aliases.get(interface_name, ''),
@@ -454,6 +465,8 @@ def list_interfaces():
                             'loss': loss,
                             'jitter': jitter,
                             'bandwidth': bandwidth,
+                            'bw_value': bw_value,
+                            'bw_unit': bw_unit,
                             'nat_status': nat_status,
                             'src_filter': src_filter,
                             'dst_filter': dst_filter,
@@ -468,6 +481,8 @@ def list_interfaces():
                             'loss': '0%',
                             'jitter': '0ms',
                             'bandwidth': None,
+                            'bw_value': '',
+                            'bw_unit': 'mbit',
                             'nat_status': False,
                             'src_filter': None,
                             'dst_filter': None,
@@ -1595,6 +1610,7 @@ def interface_detail(name):
         stats = read_proc_net_dev(name)
         mtu = get_mtu(name)
         latency, loss, jitter, bandwidth = get_qdisc_settings(name)
+        bw_value, bw_unit = split_bandwidth(bandwidth)
         src_filter, dst_filter = get_qdisc_filter(name)
         tc_available = is_tc_available()
         tcpdump_available = is_tcpdump_available()
@@ -1614,6 +1630,8 @@ def interface_detail(name):
                                loss=loss,
                                jitter=jitter,
                                bandwidth=bandwidth,
+                               bw_value=bw_value,
+                               bw_unit=bw_unit,
                                src_filter=src_filter,
                                dst_filter=dst_filter,
                                tc_available=tc_available,

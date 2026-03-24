@@ -165,9 +165,9 @@
                                        {% if ov.get('hide_bandwidth') %}disabled{% endif %}>
                                 <select name="bandwidth_unit" class="bw-unit"
                                         {% if ov.get('hide_bandwidth') %}disabled{% endif %}>
-                                    <option value="kbit">kbit</option>
-                                    <option value="mbit" selected>mbit</option>
-                                    <option value="gbit">gbit</option>
+                                    <option value="kbit" {% if interface.bw_unit == 'kbit' %}selected{% endif %}>kbit</option>
+                                    <option value="mbit" {% if interface.bw_unit == 'mbit' or not interface.bw_unit %}selected{% endif %}>mbit</option>
+                                    <option value="gbit" {% if interface.bw_unit == 'gbit' %}selected{% endif %}>gbit</option>
                                 </select>
                             </div>
                             <button type="submit" class="btn btn-primary btn-sm"

@@ -316,13 +316,13 @@
                     <div class="bw-group">
                         <input type="text" name="bandwidth_value" class="bw-input"
                                placeholder="BW"
-                               value="{{ bandwidth.split()[0] if bandwidth else '' }}"
+                               value="{{ bw_value }}"
                                {% if iface_override.get('hide_bandwidth') %}disabled title="Bandwidth limiting is disabled for this interface by admin"{% endif %}>
                         <select name="bandwidth_unit" class="bw-unit"
                                 {% if iface_override.get('hide_bandwidth') %}disabled{% endif %}>
-                            <option value="kbit" {% if bandwidth and 'kbit' in bandwidth %}selected{% endif %}>kbit</option>
-                            <option value="mbit" {% if not bandwidth or 'mbit' in bandwidth %}selected{% endif %}>mbit</option>
-                            <option value="gbit" {% if bandwidth and 'gbit' in bandwidth %}selected{% endif %}>gbit</option>
+                            <option value="kbit" {% if bw_unit == 'kbit' %}selected{% endif %}>kbit</option>
+                            <option value="mbit" {% if bw_unit == 'mbit' %}selected{% endif %}>mbit</option>
+                            <option value="gbit" {% if bw_unit == 'gbit' %}selected{% endif %}>gbit</option>
                         </select>
                     </div>
                 </div>
