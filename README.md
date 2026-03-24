@@ -7,36 +7,34 @@ HyyperWAN is a web application for emulating WAN conditions on Linux systems. It
 ---
 
 ## What's New
-
+- **UI overhaul** — Navbar, Themes (Dark / Light), Improved Layout, Coloured Status Badges.
 - **Admin page (`/admin`)** — Centralized configuration with optional password protection:
-  - Per-interface controls: disable (grey out) latency, jitter, loss, bandwidth, Capture, and NAT independently
+  - Per-interface controls: disable (grey out) latency, jitter, loss, bandwidth, packet capture, and NAT independently
   - Global controls: hide Tools column, disable route/IP/MTU modifications, hide Admin navbar link
   - Interface aliases managed here instead of inline on the main table
-  - Settings persisted to `data/admin_config.json` — mount a volume for persistence across container restarts
-- **Bandwidth limiting** — Set a bandwidth cap per interface (kbit/mbit/gbit) in addition to or instead of latency/jitter/loss. (outbound from intf)
-- **Route table management** — View, add, and remove IPv4 and IPv6 routes on the host via a dedicated Routes page (uses `ip route`; changes are temporary).
+  - Settings persistent across reboots
+- **Bandwidth limiting** — Set a bandwidth cap per interface (kbit/mbit/gbit) in addition to or instead of latency/jitter/loss. (all impairments including bandwidth are egress from interface only)
+- **Route table management** — View, add, and remove IPv4 and IPv6 routes on the host via a dedicated Routes page (changes temporary, reset at reboot).
 - **Interface detail page** — Click the `↗` icon next to any interface to open a dedicated page with:
-  - Live bandwidth graph (RX/TX bytes/sec, 60-second rolling window, 1s polling)
-  - IPv4/IPv6 address management (add/remove via `ip addr`)
-  - MTU configuration (`ip link set mtu`)
-  - TC impairments panel with Capture and NAT buttons
-- **Simultaneous HTTP + HTTPS** — A single image/process can now listen on both HTTP and HTTPS at the same time, controlled entirely by environment variables. The separate `hyyperwan-http` and `hyyperwan-https` images have been replaced by a single `hyyperwan:latest`.
-- **UI overhaul** — Sticky navbar, theme switcher (Dark / Light), responsive layout, coloured status badges, and theme preference persisted in localStorage.
+  - Live bandwidth graph per interface (RX/TX bytes/sec, 60-second rolling window, 1s polling)
+  - IPv4/IPv6 address add/change/remove (changes temporary, reset at reboot)
+  - MTU configuration (changes temporary, reset at reboot)
+  - Impairment controls panel
 
 ---
 
 ## Features
 
-- Set and control network latency, jitter, and packet loss per interface
-- Bandwidth limiting per interface (outbound on intf)
-- Enable/disable Source NAT (Masquerade) per interface
-- Interface aliases for easier identification (persistent across restarts)
-- Per-interface detail page with live bandwidth graph, IP address management, MTU setting, and Capture/NAT buttons
-- Host route table view with add/remove (IPv4 and IPv6)
+- Set and control network latency, jitter, and packet loss per interface (outbound from interface)
+- Bandwidth limiting per interface (outbound from intf)
+- Enable/disable Source NAT per interface
+- Interface aliases for easy identification (persistent across restarts)
+- Per-interface detail page with live bandwidth graphing, IP address management, MTU setting, and Capture/NAT buttons
+- Host route table view with add/remove (IPv4 and IPv6) [changes temporary, reset at reboot]
 - Packet capture via tcpdump with host/network/port filters and PCAP download
-- HTTP, HTTPS, or both simultaneously — controlled via environment variables
-- Dark and Light UI themes (persisted in browser localStorage)
-- Admin page (`/admin`) with optional password protection for centralized configuration and per-interface granular controls
+- HTTP, HTTPS, or both simultaneously — controlled via environment variables (self signed cert included, can use your own certs/CA)
+- Dark and Light UI themes 
+- Admin Settings Page (`/admin`) with optional password protection for centralized configuration and per-interface granular controls
 
 ---
 
