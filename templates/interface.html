@@ -288,10 +288,11 @@
         </div>
 
         <!-- Apply form -->
+        {% set all_imp_disabled = iface_override.get('hide_latency') and iface_override.get('hide_loss') and iface_override.get('hide_jitter') and iface_override.get('hide_bandwidth') %}
         <form action="{{ url_for('apply_interface') }}" method="post" class="imp-apply-form">
             <input type="hidden" name="interface" value="{{ iface_name }}">
             <input type="hidden" name="redirect_to" value="interface_detail">
-            <div class="imp-form-row">
+            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end;">
                 <div class="imp-field">
                     <label>Latency</label>
                     <input type="text" name="latency" placeholder="e.g. 100ms"
@@ -325,10 +326,6 @@
                         </select>
                     </div>
                 </div>
-            </div>
-            <!-- Filter row + Apply/Remove -->
-            {% set all_imp_disabled = iface_override.get('hide_latency') and iface_override.get('hide_loss') and iface_override.get('hide_jitter') and iface_override.get('hide_bandwidth') %}
-            <div class="imp-form-row imp-filter-row">
                 {% if not iface_override.get('hide_filter') %}
                 <div class="imp-field" style="min-width:200px;">
                     <label title="IPv4 only. Apply impairments only to traffic from this source CIDR (e.g. 192.168.1.0/24 or 10.1.2.3/32). Leave blank to match all sources.">Src filter <span class="filter-hint">(IPv4, optional)</span></label>
@@ -340,20 +337,18 @@
                     <input type="text" name="dst_filter" placeholder="e.g. 10.0.0.0/8"
                            value="{{ dst_filter or '' }}" style="width:100%; box-sizing:border-box;">
                 </div>
-                <div class="imp-field">
-                    <label>&nbsp;</label>
+                {% endif %}
+                <div style="display:flex; gap:6px; align-items:flex-end; padding-bottom:1px;">
+                    <button type="submit" class="btn btn-primary btn-sm"
+                            {% if all_imp_disabled %}disabled title="All impairments are disabled for this interface by admin"{% endif %}>Apply</button>
+                    <button type="button" class="btn btn-remove btn-sm"
+                            {% if all_imp_disabled %}disabled title="All impairments are disabled for this interface by admin"{% else %}onclick="submitImpairmentRemove()"{% endif %}>Remove</button>
+                </div>
+                {% if not iface_override.get('hide_filter') %}
+                <div style="align-self:flex-end; padding-bottom:4px;">
                     <span class="filter-note">egress only &middot; not compatible with BW limit</span>
                 </div>
                 {% endif %}
-                <div class="imp-field imp-actions" style="margin-left:auto;">
-                    <label>&nbsp;</label>
-                    <div style="display:flex; gap:6px;">
-                        <button type="submit" class="btn btn-primary btn-sm"
-                                {% if all_imp_disabled %}disabled title="All impairments are disabled for this interface by admin"{% endif %}>Apply</button>
-                        <button type="button" class="btn btn-remove btn-sm"
-                                {% if all_imp_disabled %}disabled title="All impairments are disabled for this interface by admin"{% else %}onclick="submitImpairmentRemove()"{% endif %}>Remove</button>
-                    </div>
-                </div>
             </div>
         </form>
         <form id="imp-remove-form" action="{{ url_for('remove_interface') }}" method="post">

@@ -495,7 +495,6 @@ td {
 }
 
 /* Filter row on interface detail apply form */
-.imp-filter-row { margin-top: 4px; }
 .filter-hint { font-size: 0.72rem; color: var(--text-muted); font-weight: 400; }
 .filter-note { font-size: 0.75rem; color: var(--text-muted); align-self: center; padding-top: 18px; }
 
