@@ -280,6 +280,7 @@ All configuration is done through environment variables — in the `.env` file f
 | `IGNORE_INTERFACES` | `docker0` | Comma-separated list of interfaces to not display in the UI |
 | `ADMIN_PASSWORD` | _(unset)_ | Password for the `/admin` page — pass at runtime only, never bake into an image. If unset, the admin page is open. |
 | `ADMIN_CONFIG_PATH` | `/app/data/admin_config.json` | Path to the admin settings file. Mount a volume here for persistence across restarts. |
+| `INTERFACE_ALIASES` | _(unset)_ | Comma-separated `name=alias` pairs to seed interface aliases on first start (e.g. `eth0=WAN,eth1=LAN`). Ignored if `interface_aliases.json` already exists. |
 | `FLASK_DEBUG` | `false` | Enable Flask debug mode |
 | `USE_HTTPS` | `false` | Legacy alias: `true` is equivalent to `ENABLE_HTTPS=true` + `ENABLE_HTTP=false` |
 | `FLASK_RUN_PORT` | _(unset)_ | Legacy alias for `HTTP_PORT` |
@@ -361,6 +362,28 @@ Click **Routes** in the navigation bar to view and manage the host's routing tab
 ### Interface Aliases
 
 Aliases are set via the **Admin page** (`/admin`) in the Per-Interface Controls table. They are stored persistently in `interface_aliases.json` and survive application restarts. The alias is displayed beneath the interface name on the main table and interface detail page.
+
+**Seeding aliases via environment variable (`INTERFACE_ALIASES`):**
+
+For deployments without a volume mount, aliases can be seeded at container start using the `INTERFACE_ALIASES` environment variable:
+
+```bash
+docker run -d --name hyyperwan \
+  --net=host --privileged \
+  -e INTERFACE_ALIASES="eth0=WAN,eth1=LAN-1,eth2=LAN-2" \
+  ghcr.io/hyyperlite/hyyperwan:latest
+```
+
+This uses Option D seeding: the env var only applies if `interface_aliases.json` does not already exist. Once the file exists (from an env var seed or an admin page save), the file takes precedence and the env var is ignored on subsequent restarts. To re-seed, remove the container and recreate it, or clear the file.
+
+**Copying aliases between instances (Export / Import):**
+
+The bottom of the Admin page has an **Export / Import** panel. Use it to transfer aliases from one instance to another without a volume mount:
+
+1. On the source instance — copy the export string (e.g. `eth0=WAN,eth1=LAN-1`)
+2. On the target instance — paste it into the **Import** field and click **Apply**
+
+Imported aliases are merged into the existing ones: pasted values win for any overlapping interface names, and interfaces not in the pasted string are left unchanged. The same string can also be passed directly as the `INTERFACE_ALIASES` env var when starting a new container.
 
 ### Packet Capture
 
