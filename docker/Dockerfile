@@ -78,6 +78,11 @@ ENV FLASK_RUN_HOST=0.0.0.0
 # IGNORE_INTERFACES — comma-separated interfaces to hide (default: docker0)
 # DISABLE_TOOLS_COLUMN — hide Capture/NAT column (default: false)
 # ADMIN_CONFIG_PATH — path to config JSON (default: /app/data/admin_config.json)
+# INTERFACE_ALIASES — comma-separated name=alias pairs to seed interface aliases on
+#                     first start (when no interface_aliases.json exists):
+#                     docker run -e INTERFACE_ALIASES="eth0=WAN,eth1=LAN" ...
+#                     Once the json file exists (after first start or admin save),
+#                     the json takes precedence and this env var is ignored.
 # ---------------------------------------------------------------------------
 ENV IGNORE_INTERFACES=docker0
 ENV DISABLE_TOOLS_COLUMN=false

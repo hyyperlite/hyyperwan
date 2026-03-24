@@ -128,14 +128,31 @@ def cleanup_pcap_file(filepath, delay=30):
 def load_interface_aliases():
     """
     Load interface aliases from the JSON file.
+    If the file doesn't exist, seed from the INTERFACE_ALIASES env var
+    (format: "eth0=WAN,eth1=LAN-1") and write it so subsequent calls use the file.
     Returns a dictionary mapping interface names to their aliases.
     """
     try:
         if os.path.exists(ALIASES_FILE):
             with open(ALIASES_FILE, 'r') as f:
                 return json.load(f)
-        else:
-            return {}
+        # File doesn't exist — seed from env var if provided
+        env_aliases = os.environ.get('INTERFACE_ALIASES', '').strip()
+        if env_aliases:
+            aliases = {}
+            for pair in env_aliases.split(','):
+                pair = pair.strip()
+                if '=' in pair:
+                    iface, alias = pair.split('=', 1)
+                    iface = iface.strip()
+                    alias = alias.strip()
+                    if iface and alias:
+                        aliases[iface] = alias
+            if aliases:
+                save_interface_aliases(aliases)
+                logging.info(f"Seeded interface aliases from INTERFACE_ALIASES env var: {aliases}")
+            return aliases
+        return {}
     except Exception as e:
         logging.error(f"Error loading interface aliases: {str(e)}")
         return {}
