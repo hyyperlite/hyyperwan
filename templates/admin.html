@@ -310,6 +310,35 @@
 
     </form>
 
+    <!-- ── Interface Aliases Export ────────────────────────────────── -->
+    <div class="admin-section" style="margin-top:1.5rem;">
+        <h2>Export Interface Aliases</h2>
+        <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:1rem;">
+            Use this value as the <code>INTERFACE_ALIASES</code> environment variable when starting a new
+            instance to seed the same aliases without a volume mount.
+        </p>
+        {% set alias_pairs = [] %}
+        {% for iface, alias in aliases.items() %}
+            {% if alias %}
+                {% set _ = alias_pairs.append(iface ~ '=' ~ alias) %}
+            {% endif %}
+        {% endfor %}
+        {% if alias_pairs %}
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+            <code id="aliasExportStr"
+                  style="flex:1; background:var(--bg-input); border:1px solid var(--border-strong);
+                         border-radius:var(--radius); padding:0.4rem 0.75rem; font-size:0.85rem;
+                         color:var(--text-primary); word-break:break-all;">{{ alias_pairs | join(',') }}</code>
+            <button type="button" class="btn btn-secondary" onclick="copyAliases(this)">Copy</button>
+        </div>
+        <div class="admin-note" style="padding-left:0; margin-top:0.5rem;">
+            Example: <code>docker run -e INTERFACE_ALIASES="{{ alias_pairs | join(',') }}" ...</code>
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted); font-size:0.85rem;">No aliases configured yet. Set aliases in the Per-Interface Controls table above and save.</p>
+        {% endif %}
+    </div>
+
 </main>
 
 <script>
@@ -335,6 +364,16 @@ function cycleTheme() {
 }
 
 (function () { applyTheme(getTheme()); })();
+
+// ---- Alias export copy ---------------------------------------------------
+function copyAliases(btn) {
+    const text = document.getElementById('aliasExportStr').textContent.trim();
+    navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+    });
+}
 </script>
 </body>
 </html>
