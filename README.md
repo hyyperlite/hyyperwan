@@ -13,7 +13,7 @@ HyyperWAN is a web application for emulating WAN conditions on Linux systems. It
   - Global controls: hide Tools column, disable route/IP/MTU modifications, hide Admin navbar link
   - Interface aliases managed here instead of inline on the main table
   - Settings persisted to `data/admin_config.json` — mount a volume for persistence across container restarts
-- **Bandwidth limiting** — Set a bandwidth cap per interface (kbit/mbit/gbit) in addition to or instead of latency/jitter/loss. Uses HTB+netem stacking when combining impairments.
+- **Bandwidth limiting** — Set a bandwidth cap per interface (kbit/mbit/gbit) in addition to or instead of latency/jitter/loss. (outbound from intf)
 - **Route table management** — View, add, and remove IPv4 and IPv6 routes on the host via a dedicated Routes page (uses `ip route`; changes are temporary).
 - **Interface detail page** — Click the `↗` icon next to any interface to open a dedicated page with:
   - Live bandwidth graph (RX/TX bytes/sec, 60-second rolling window, 1s polling)
@@ -22,14 +22,13 @@ HyyperWAN is a web application for emulating WAN conditions on Linux systems. It
   - TC impairments panel with Capture and NAT buttons
 - **Simultaneous HTTP + HTTPS** — A single image/process can now listen on both HTTP and HTTPS at the same time, controlled entirely by environment variables. The separate `hyyperwan-http` and `hyyperwan-https` images have been replaced by a single `hyyperwan:latest`.
 - **UI overhaul** — Sticky navbar, theme switcher (Dark / Light), responsive layout, coloured status badges, and theme preference persisted in localStorage.
-- **Consolidated Dockerfile** — Single `docker/Dockerfile` replaces the previous `Dockerfile.http` and `Dockerfile.https`.
 
 ---
 
 ## Features
 
 - Set and control network latency, jitter, and packet loss per interface
-- Bandwidth limiting per interface
+- Bandwidth limiting per interface (outbound on intf)
 - Enable/disable Source NAT (Masquerade) per interface
 - Interface aliases for easier identification (persistent across restarts)
 - Per-interface detail page with live bandwidth graph, IP address management, MTU setting, and Capture/NAT buttons
