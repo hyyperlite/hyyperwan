@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyyperWAN — Routes — {{ hostname }}</title>
+    <script>
+        (function () {
+            var t = localStorage.getItem('hyyperwan-theme') || '';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}">
+</head>
+<body>
+
+<!-- =====================================================================
+     Navigation
+     ===================================================================== -->
+<nav class="navbar">
+    <span class="navbar-brand">HyyperWAN</span>
+    <div class="navbar-links">
+        <a href="{{ url_for('index') }}" class="nav-link">Interfaces</a>
+        <a href="{{ url_for('routes_page') }}" class="nav-link active">Routes</a>
+        {% if not hide_admin_link %}<a href="{{ url_for('admin') }}" class="nav-link">Admin</a>{% endif %}
+    </div>
+    <div class="navbar-right">
+        <span class="hostname-badge"><span class="badge-label">Host:</span> {{ hostname }}</span>
+        <button class="theme-btn" id="themeBtn" onclick="cycleTheme()"><span class="badge-label">Theme:</span> Dark Red</button>
+    </div>
+</nav>
+
+<!-- =====================================================================
+     Main content
+     ===================================================================== -->
+<main class="main-content">
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages">
+        {% for category, message in messages %}
+        <div class="flash-message {{ category }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {% if not disable_routes %}
+    <div class="temp-route-warning">
+        <strong>&#9888; Routes added or removed here are temporary</strong> and will not survive a
+        reboot. For persistent routes, configure your system's network manager
+        (e.g., <code>netplan</code> on Ubuntu, <code>nmcli</code> for NetworkManager, or
+        <code>/etc/network/interfaces</code> on Debian). These vary by distribution and are
+        outside the scope of this tool.
+    </div>
+    {% endif %}
+
+    <div class="section-header">
+        <span class="section-title">Host Route Table</span>
+        <span class="section-sub">Read and modified via <code>ip route</code> /
+            <code>ip -6 route</code></span>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+        <button class="tab-btn active" id="tab-ipv4" onclick="switchTab('ipv4')">IPv4 Routes</button>
+        <button class="tab-btn"        id="tab-ipv6" onclick="switchTab('ipv6')">IPv6 Routes</button>
+    </div>
+
+    <!-- ----------------------------------------------------------------
+         IPv4 Panel
+         ---------------------------------------------------------------- -->
+    <div id="panel-ipv4" class="tab-panel active">
+
+        <!-- Add IPv4 route form -->
+        {% if not disable_routes %}
+        <div class="add-route-form">
+            <h3>Add IPv4 Route</h3>
+            <form action="{{ url_for('add_route_handler') }}" method="post">
+                <input type="hidden" name="ip_version" value="4">
+                <div class="add-route-inputs">
+                    <div class="field-group">
+                        <label>Destination *</label>
+                        <input type="text" name="destination" placeholder="e.g. 10.2.0.0/24 or default"
+                               required>
+                    </div>
+                    <div class="field-group">
+                        <label>Gateway (via)</label>
+                        <input type="text" name="gateway" placeholder="e.g. 192.168.1.1">
+                    </div>
+                    <div class="field-group">
+                        <label>Interface (dev)</label>
+                        <select name="interface">
+                            <option value="">— any —</option>
+                            {% for iface in interfaces %}
+                            <option value="{{ iface.name }}">
+                                {{ iface.name }}{% if iface.alias %} ({{ iface.alias }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Metric</label>
+                        <input type="text" name="metric" placeholder="e.g. 100" style="min-width:80px">
+                    </div>
+                    <div class="field-group" style="justify-content:flex-end">
+                        <label>&nbsp;</label>
+                        <button type="submit" class="btn btn-primary">Add Route</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- IPv4 route table -->
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Destination</th>
+                        <th>Gateway</th>
+                        <th>Interface</th>
+                        <th>Proto</th>
+                        <th>Scope</th>
+                        <th>Metric</th>
+                        {% if not disable_routes %}<th>Action</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                {% for route in routes_v4 %}
+                <tr>
+                    <td class="mono">{{ route.destination }}</td>
+                    <td class="mono">{{ route.gateway or '—' }}</td>
+                    <td class="mono">{{ route.interface or '—' }}</td>
+                    <td class="route-proto">{{ route.proto or '—' }}</td>
+                    <td class="route-proto">{{ route.scope or '—' }}</td>
+                    <td class="route-metric">{{ route.metric or '—' }}</td>
+                    {% if not disable_routes %}
+                    <td>
+                        {% if route.proto != 'kernel' %}
+                        <form action="{{ url_for('del_route_handler') }}" method="post"
+                              onsubmit="return confirm('Delete route {{ route.destination }}?')">
+                            <input type="hidden" name="ip_version"   value="4">
+                            <input type="hidden" name="destination"  value="{{ route.destination }}">
+                            <input type="hidden" name="gateway"      value="{{ route.gateway }}">
+                            <input type="hidden" name="interface"    value="{{ route.interface }}">
+                            <button type="submit" class="btn btn-danger del-route-btn">Delete</button>
+                        </form>
+                        {% else %}
+                        <span class="tool-unavailable">kernel</span>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+                {% if not routes_v4 %}
+                <tr><td colspan="{% if disable_routes %}6{% else %}7{% endif %}" class="no-data">No IPv4 routes found</td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div><!-- /panel-ipv4 -->
+
+    <!-- ----------------------------------------------------------------
+         IPv6 Panel
+         ---------------------------------------------------------------- -->
+    <div id="panel-ipv6" class="tab-panel">
+
+        <!-- Add IPv6 route form -->
+        {% if not disable_routes %}
+        <div class="add-route-form">
+            <h3>Add IPv6 Route</h3>
+            <form action="{{ url_for('add_route_handler') }}" method="post">
+                <input type="hidden" name="ip_version" value="6">
+                <div class="add-route-inputs">
+                    <div class="field-group">
+                        <label>Destination *</label>
+                        <input type="text" name="destination"
+                               placeholder="e.g. 2001:db8::/32 or default" required>
+                    </div>
+                    <div class="field-group">
+                        <label>Gateway (via)</label>
+                        <input type="text" name="gateway" placeholder="e.g. fe80::1">
+                    </div>
+                    <div class="field-group">
+                        <label>Interface (dev)</label>
+                        <select name="interface">
+                            <option value="">— any —</option>
+                            {% for iface in interfaces %}
+                            <option value="{{ iface.name }}">
+                                {{ iface.name }}{% if iface.alias %} ({{ iface.alias }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Metric</label>
+                        <input type="text" name="metric" placeholder="e.g. 256" style="min-width:80px">
+                    </div>
+                    <div class="field-group" style="justify-content:flex-end">
+                        <label>&nbsp;</label>
+                        <button type="submit" class="btn btn-primary">Add Route</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- IPv6 route table -->
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Destination</th>
+                        <th>Gateway</th>
+                        <th>Interface</th>
+                        <th>Proto</th>
+                        <th>Scope</th>
+                        <th>Metric</th>
+                        {% if not disable_routes %}<th>Action</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                {% for route in routes_v6 %}
+                <tr>
+                    <td class="mono">{{ route.destination }}</td>
+                    <td class="mono">{{ route.gateway or '—' }}</td>
+                    <td class="mono">{{ route.interface or '—' }}</td>
+                    <td class="route-proto">{{ route.proto or '—' }}</td>
+                    <td class="route-proto">{{ route.scope or '—' }}</td>
+                    <td class="route-metric">{{ route.metric or '—' }}</td>
+                    {% if not disable_routes %}
+                    <td>
+                        {% if route.proto != 'kernel' %}
+                        <form action="{{ url_for('del_route_handler') }}" method="post"
+                              onsubmit="return confirm('Delete IPv6 route {{ route.destination }}?')">
+                            <input type="hidden" name="ip_version"   value="6">
+                            <input type="hidden" name="destination"  value="{{ route.destination }}">
+                            <input type="hidden" name="gateway"      value="{{ route.gateway }}">
+                            <input type="hidden" name="interface"    value="{{ route.interface }}">
+                            <button type="submit" class="btn btn-danger del-route-btn">Delete</button>
+                        </form>
+                        {% else %}
+                        <span class="tool-unavailable">kernel</span>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+                {% if not routes_v6 %}
+                <tr><td colspan="{% if disable_routes %}6{% else %}7{% endif %}" class="no-data">No IPv6 routes found</td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div><!-- /panel-ipv6 -->
+
+</main>
+
+<script>
+// ---- Theme cycling -------------------------------------------------------
+const THEMES      = ['', 'light'];
+const THEME_NAMES = ['Dark', 'Light'];
+const THEME_KEY   = 'hyyperwan-theme';
+
+function getTheme() { return localStorage.getItem(THEME_KEY) || ''; }
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
+    const idx = THEMES.indexOf(theme);
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.innerHTML = `<span class="badge-label">Theme:</span> ${THEME_NAMES[idx >= 0 ? idx : 0]}`;
+}
+
+function cycleTheme() {
+    const cur = getTheme();
+    const idx = THEMES.indexOf(cur);
+    applyTheme(THEMES[(idx + 1) % THEMES.length]);
+}
+
+(function () { applyTheme(getTheme()); })();
+
+// ---- Tab switching -------------------------------------------------------
+function switchTab(name) {
+    ['ipv4', 'ipv6'].forEach(function (t) {
+        document.getElementById('tab-' + t).classList.toggle('active', t === name);
+        document.getElementById('panel-' + t).classList.toggle('active', t === name);
+    });
+}
+</script>
+</body>
+</html>

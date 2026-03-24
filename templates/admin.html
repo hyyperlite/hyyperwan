@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyyperWAN — Admin — {{ hostname }}</title>
+    <script>
+        (function () {
+            var t = localStorage.getItem('hyyperwan-theme') || '';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}">
+    <style>
+        .admin-section {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .admin-section h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--accent-light);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .admin-field {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.9rem;
+        }
+        .admin-field label {
+            min-width: 200px;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+        }
+        .admin-field input[type="text"],
+        .admin-field select {
+            background: var(--bg-input);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            padding: 0.35rem 0.6rem;
+            font-size: 0.88rem;
+            min-width: 260px;
+        }
+        .admin-field input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+        .admin-note {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: -0.4rem;
+            margin-bottom: 0.9rem;
+            padding-left: 200px;
+        }
+        /* Per-interface table */
+        .iface-override-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .iface-override-table th {
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            font-weight: 500;
+            padding: 0.5rem 0.75rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        .iface-override-table th:first-child { text-align: left; }
+        .iface-override-table td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-primary);
+        }
+        .iface-override-table td:first-child { text-align: left; font-weight: 500; }
+        .iface-override-table tr:last-child td { border-bottom: none; }
+        .iface-override-table tr:hover td { background: var(--bg-row-hover); }
+        .iface-override-table input[type="checkbox"] {
+            width: 15px; height: 15px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+        .col-group-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .col-sep { border-left: 1px solid var(--border); }
+        .auth-notice {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.6rem 1rem;
+            border-radius: var(--radius);
+            font-size: 0.83rem;
+            margin-bottom: 1.2rem;
+        }
+        .auth-notice.set   { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+        .auth-notice.unset { background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning-border); }
+        .save-bar {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            padding-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+<!-- =====================================================================
+     Navigation
+     ===================================================================== -->
+<nav class="navbar">
+    <span class="navbar-brand">HyyperWAN</span>
+    <div class="navbar-links">
+        <a href="{{ url_for('index') }}" class="nav-link">Interfaces</a>
+        <a href="{{ url_for('routes_page') }}" class="nav-link">Routes</a>
+        <a href="{{ url_for('admin') }}" class="nav-link active">Admin</a>
+    </div>
+    <div class="navbar-right">
+        <span class="hostname-badge"><span class="badge-label">Host:</span> {{ hostname }}</span>
+        <button class="theme-btn" id="themeBtn" onclick="cycleTheme()"><span class="badge-label">Theme:</span> Dark</button>
+    </div>
+</nav>
+
+<!-- =====================================================================
+     Main content
+     ===================================================================== -->
+<main class="main-content">
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages">
+        {% for category, message in messages %}
+        <div class="flash-message {{ category }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="section-header">
+        <span class="section-title">Admin Settings</span>
+        <span class="section-sub">Settings are saved to <code>data/admin_config.json</code> and persist across restarts when a volume is mounted.</span>
+    </div>
+
+    {% if admin_password_set %}
+    <div class="auth-notice set">&#128274; Password protection is active (<code>ADMIN_PASSWORD</code> is set).</div>
+    {% else %}
+    <div class="auth-notice unset">&#9888; No password set — admin page is open. Set <code>ADMIN_PASSWORD</code> env var to require authentication.</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('admin_save') }}">
+
+        <!-- ── Global Settings ─────────────────────────────────────── -->
+        <div class="admin-section">
+            <h2>Global Settings</h2>
+
+            <div class="admin-field">
+                <label for="hidden_interfaces">Do not display interfaces</label>
+                <input type="text" id="hidden_interfaces" name="hidden_interfaces"
+                       value="{{ cfg.hidden_interfaces | join(', ') }}"
+                       placeholder="e.g. docker0, virbr0">
+            </div>
+            <div class="admin-note">Comma-separated interface names to hide from the Interfaces table.</div>
+
+            <div class="admin-field">
+                <label for="disable_tools_column">Hide Tools column entirely</label>
+                <input type="checkbox" id="disable_tools_column" name="disable_tools_column"
+                       {% if cfg.disable_tools_column %}checked{% endif %}>
+            </div>
+            <div class="admin-note">Hides the Capture and NAT buttons column for all interfaces.</div>
+
+            <div class="admin-field">
+                <label for="hide_admin_link">Hide Admin link from navbar</label>
+                <input type="checkbox" id="hide_admin_link" name="hide_admin_link"
+                       {% if cfg.hide_admin_link %}checked{% endif %}>
+            </div>
+            <div class="admin-note">Removes the Admin link from the navbar on all pages. The admin page remains accessible directly at <code>/admin</code>. A reminder with the full URL is shown when this is first enabled.</div>
+
+            <div class="admin-field">
+                <label for="default_theme">Default theme</label>
+                <select id="default_theme" name="default_theme">
+                    <option value=""    {% if cfg.default_theme == ''      %}selected{% endif %}>Dark</option>
+                    <option value="light" {% if cfg.default_theme == 'light' %}selected{% endif %}>Light</option>
+                </select>
+            </div>
+            <div class="admin-note">Applied when a user has no theme stored in their browser localStorage.</div>
+
+            <div class="admin-field">
+                <label for="disable_routes">Disable route modifications</label>
+                <input type="checkbox" id="disable_routes" name="disable_routes"
+                       {% if cfg.disable_routes %}checked{% endif %}>
+            </div>
+            <div class="admin-note">Hides Add Route forms and Delete buttons on the Routes page. Routes remain visible (read-only).</div>
+
+            <div class="admin-field">
+                <label for="disable_interface_ips">Disable IP address changes</label>
+                <input type="checkbox" id="disable_interface_ips" name="disable_interface_ips"
+                       {% if cfg.disable_interface_ips %}checked{% endif %}>
+            </div>
+            <div class="admin-note">Hides Add and Remove address buttons on the Interface detail page. Addresses remain visible.</div>
+
+            <div class="admin-field">
+                <label for="disable_mtu">Disable MTU changes</label>
+                <input type="checkbox" id="disable_mtu" name="disable_mtu"
+                       {% if cfg.disable_mtu %}checked{% endif %}>
+            </div>
+            <div class="admin-note">Hides the MTU Set input and Apply button on the Interface detail page. Current MTU remains visible.</div>
+        </div>
+
+        <!-- ── Per-Interface Controls ──────────────────────────────── -->
+        <div class="admin-section">
+            <h2>Per-Interface Controls</h2>
+            <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:1rem;">
+                Checked items will be <strong>visible but disabled (greyed out)</strong> on that interface.
+                The Tools column global hide above takes precedence over per-interface Capture / NAT settings.
+            </p>
+
+            {% if all_interfaces %}
+            <table class="iface-override-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2">Interface</th>
+                        <th rowspan="2">Alias</th>
+                        <th colspan="2" class="col-sep col-group-label">Tools column</th>
+                        <th colspan="4" class="col-sep col-group-label">Impairments</th>
+                        <th colspan="1" class="col-sep col-group-label">Filter</th>
+                    </tr>
+                    <tr>
+                        <th class="col-sep">Disable<br>Capture</th>
+                        <th>Disable<br>NAT</th>
+                        <th class="col-sep">Disable<br>Latency</th>
+                        <th>Disable<br>Jitter</th>
+                        <th>Disable<br>Loss</th>
+                        <th>Disable<br>Bandwidth</th>
+                        <th class="col-sep">Disable<br>Src/Dst Filter</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for iface in all_interfaces %}
+                    {% set ov = cfg.interface_overrides.get(iface, {}) %}
+                    <tr>
+                        <td>
+                            {{ iface }}
+                            <input type="hidden" name="iface_names" value="{{ iface }}">
+                        </td>
+                        <td>
+                            <input type="text" name="alias_{{ iface }}"
+                                   value="{{ aliases.get(iface, '') }}"
+                                   placeholder="Alias…"
+                                   style="width:110px; padding:3px 6px; font-size:0.82rem;
+                                          border-radius:var(--radius); border:1px solid var(--border-strong);
+                                          background:var(--bg-input); color:var(--text-primary);">
+                        </td>
+                        <td class="col-sep">
+                            <input type="checkbox" name="hide_capture_{{ iface }}"
+                                   {% if ov.get('hide_capture') %}checked{% endif %}>
+                        </td>
+                        <td>
+                            <input type="checkbox" name="hide_nat_{{ iface }}"
+                                   {% if ov.get('hide_nat') %}checked{% endif %}>
+                        </td>
+                        <td class="col-sep">
+                            <input type="checkbox" name="hide_latency_{{ iface }}"
+                                   {% if ov.get('hide_latency') %}checked{% endif %}>
+                        </td>
+                        <td>
+                            <input type="checkbox" name="hide_jitter_{{ iface }}"
+                                   {% if ov.get('hide_jitter') %}checked{% endif %}>
+                        </td>
+                        <td>
+                            <input type="checkbox" name="hide_loss_{{ iface }}"
+                                   {% if ov.get('hide_loss') %}checked{% endif %}>
+                        </td>
+                        <td>
+                            <input type="checkbox" name="hide_bandwidth_{{ iface }}"
+                                   {% if ov.get('hide_bandwidth') %}checked{% endif %}>
+                        </td>
+                        <td class="col-sep">
+                            <input type="checkbox" name="hide_filter_{{ iface }}"
+                                   {% if ov.get('hide_filter') %}checked{% endif %}>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:var(--text-muted); font-size:0.85rem;">No interfaces detected.</p>
+            {% endif %}
+        </div>
+
+        <div class="save-bar">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+        </div>
+
+    </form>
+
+</main>
+
+<script>
+// ---- Theme cycling -------------------------------------------------------
+const THEMES      = ['', 'light'];
+const THEME_NAMES = ['Dark', 'Light'];
+const THEME_KEY   = 'hyyperwan-theme';
+
+function getTheme() { return localStorage.getItem(THEME_KEY) || ''; }
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
+    const idx = THEMES.indexOf(theme);
+    const btn = document.getElementById('themeBtn');
+    if (btn) btn.innerHTML = `<span class="badge-label">Theme:</span> ${THEME_NAMES[idx >= 0 ? idx : 0]}`;
+}
+
+function cycleTheme() {
+    const cur = getTheme();
+    const idx = THEMES.indexOf(cur);
+    applyTheme(THEMES[(idx + 1) % THEMES.length]);
+}
+
+(function () { applyTheme(getTheme()); })();
+</script>
+</body>
+</html>
