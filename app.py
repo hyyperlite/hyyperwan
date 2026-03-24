@@ -279,17 +279,17 @@ def get_qdisc_filter(interface):
         import ipaddress
         for line in output.splitlines():
             line = line.strip()
-            # u32 match lines look like: match <hex>/<hex> at <offset>
-            # offset 12 = src IP, offset 16 = dst IP in IPv4 header
-            m_src = re.search(r'match\s+(0x[0-9a-f]+)/(0x[0-9a-f]+)\s+at\s+12\b', line)
-            m_dst = re.search(r'match\s+(0x[0-9a-f]+)/(0x[0-9a-f]+)\s+at\s+16\b', line)
+            # tc filter show outputs: match <hex>/<hex> at <offset>
+            # hex values have no 0x prefix, offset 12 = src, offset 16 = dst
+            m_src = re.search(r'match\s+([0-9a-f]+)/([0-9a-f]+)\s+at\s+12\b', line)
+            m_dst = re.search(r'match\s+([0-9a-f]+)/([0-9a-f]+)\s+at\s+16\b', line)
             if m_src:
-                ip_int  = int(m_src.group(1), 16)
+                ip_int   = int(m_src.group(1), 16)
                 mask_int = int(m_src.group(2), 16)
                 prefix = bin(mask_int).count('1')
                 src = f"{ipaddress.IPv4Address(ip_int)}/{prefix}"
             if m_dst:
-                ip_int  = int(m_dst.group(1), 16)
+                ip_int   = int(m_dst.group(1), 16)
                 mask_int = int(m_dst.group(2), 16)
                 prefix = bin(mask_int).count('1')
                 dst = f"{ipaddress.IPv4Address(ip_int)}/{prefix}"
