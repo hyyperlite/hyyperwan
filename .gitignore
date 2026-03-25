@@ -16,3 +16,4 @@ interface_aliases.json
 certificates/
 ignored_interfaces.json
 data/
+wiki/
