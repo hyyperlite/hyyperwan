@@ -28,6 +28,7 @@ HyyperWAN is a web application for emulating WAN conditions on Linux systems. It
 - Set and control network latency, jitter, and packet loss per interface (outbound from interface)
 - Bandwidth limiting per interface (outbound from intf)
 - Enable/disable Source NAT per interface
+- Set interface admin state up/down (bring link up or down on demand)
 - Interface aliases for easy identification (persistent across restarts)
 - Per-interface detail page with live bandwidth graphing, IP address management, MTU setting, and Capture/NAT buttons
 - Host route table view with add/remove (IPv4 and IPv6) [changes temporary, reset at reboot]
@@ -301,7 +302,7 @@ Navigate to `/admin` in your browser to configure:
 - **Hide Admin link from navbar** — removes the Admin link from all navbars; the page remains accessible at `/admin`. A reminder with the full URL is shown when first enabled.
 
 **Per-interface controls** (visible but greyed out when disabled):
-- Disable Capture, NAT, Latency, Jitter, Loss, or Bandwidth independently per interface
+- Disable Capture, NAT, Latency, Jitter, Loss, Bandwidth, or Link Up/Down control independently per interface
 - Set interface aliases
 
 **Persistent settings (Docker):** Admin settings are saved to `ADMIN_CONFIG_PATH` (`/app/data/admin_config.json` by default). Without a volume mount, settings are lost when the container is recreated. To persist them:
@@ -336,12 +337,15 @@ For each network interface you can:
 - Toggle **Source NAT** (Masquerade) on/off per interface
 - Click **Capture** to start a tcpdump packet capture
 
+The **Status** column shows two indicators per interface: **Admin** (administrative up/down state, clickable to toggle) and **Link** (physical/oper state, read-only). Bringing an interface admin-down sends a link-down signal to the connected peer. Both states remain visible even when the interface has no IP address.
+
 Click the **`↗`** icon next to any interface name to open the interface detail page.
 
 ### Interface Detail Page
 
 <img src="docs/images/per-interface.png" alt="HyyperWAN Interface Detail" width="900">
 
+- **Admin / Link state** — shows admin state (clickable up/down toggle) and physical link/oper state side by side in the page heading
 - **TC Impairments** — view current latency/jitter/loss/bandwidth, apply or remove impairments, with Capture and NAT buttons alongside
 - **IP Addresses** — view, add, and remove IPv4/IPv6 addresses (`ip addr add/del`)
 - **MTU** — view and set the MTU (`ip link set mtu`)
