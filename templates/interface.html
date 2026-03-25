@@ -240,6 +240,27 @@
         {% if iface_alias %}
         <span class="iface-alias-h">{{ iface_alias }}</span>
         {% endif %}
+        {# Link state indicator + toggle — compact, inline with heading #}
+        {% if link_state is not none %}
+        <span class="link-state-indicator {% if link_state %}link-up{% else %}link-down{% endif %}"
+              title="Link admin state: {{ 'UP' if link_state else 'DOWN' }}">
+            &#9679; {{ 'UP' if link_state else 'DOWN' }}
+        </span>
+        {% if not iface_override.get('hide_link_ctrl') %}
+        <form action="{{ url_for('interface_set_link', name=iface_name) }}" method="POST"
+              style="display:inline;"
+              onsubmit="return confirm('Bring {{ iface_name }} link {{ 'DOWN' if link_state else 'UP' }}?')">
+            <input type="hidden" name="state" value="{{ 'down' if link_state else 'up' }}">
+            <input type="hidden" name="redirect_to" value="interface_detail">
+            <button type="submit" class="btn-link-toggle"
+                    title="Click to bring link {{ 'down' if link_state else 'up' }}">
+                {{ 'Bring Down' if link_state else 'Bring Up' }}
+            </button>
+        </form>
+        {% else %}
+        <span class="link-ctrl-disabled" title="Link control is disabled for this interface by admin">Link ctrl disabled</span>
+        {% endif %}
+        {% endif %}
     </div>
 
     <!-- ===================================================================

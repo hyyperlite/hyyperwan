@@ -842,7 +842,85 @@ code {
 }
 
 /* --------------------------------------------------------------------------
-   20. Responsive
+   20. Link Up/Down controls
+   -------------------------------------------------------------------------- */
+
+/* Tools cell button — link state toggle (same compact size as NAT/Capture) */
+.link-state-btn {
+    white-space: nowrap;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    transition: opacity var(--transition);
+}
+.link-state-btn.link-up {
+    background: var(--success-bg);
+    color: var(--success-text);
+    border: 1px solid var(--success-border);
+}
+.link-state-btn.link-up:hover:not(:disabled) {
+    opacity: 0.80;
+}
+.link-state-btn.link-down {
+    background: var(--error-bg);
+    color: var(--error-text);
+    border: 1px solid var(--error-border);
+}
+.link-state-btn.link-down:hover:not(:disabled) {
+    opacity: 0.80;
+}
+.link-state-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Per-interface page — inline heading indicator */
+.link-state-indicator {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    letter-spacing: 0.03em;
+}
+.link-state-indicator.link-up {
+    background: var(--success-bg);
+    color: var(--success-text);
+    border: 1px solid var(--success-border);
+}
+.link-state-indicator.link-down {
+    background: var(--error-bg);
+    color: var(--error-text);
+    border: 1px solid var(--error-border);
+}
+
+/* Compact text button for bring-up/bring-down on per-interface heading */
+.btn-link-toggle {
+    background: none;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    cursor: pointer;
+    transition: border-color var(--transition), color var(--transition);
+}
+.btn-link-toggle:hover {
+    border-color: var(--accent-light);
+    color: var(--text-primary);
+}
+
+.link-ctrl-disabled {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* --------------------------------------------------------------------------
+   21. Responsive
    -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
     .navbar-brand { font-size: 1.05rem; }

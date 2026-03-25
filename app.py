@@ -474,6 +474,7 @@ def list_interfaces():
                         src_filter, dst_filter = get_qdisc_filter(interface_name)
                         nat_status = get_nat_status(interface_name)
                         bw_value, bw_unit = split_bandwidth(bandwidth)
+                        link_state = get_link_state(interface_name)
                         interfaces.append({
                             'name': interface_name,
                             'alias': aliases.get(interface_name, ''),
@@ -487,6 +488,7 @@ def list_interfaces():
                             'nat_status': nat_status,
                             'src_filter': src_filter,
                             'dst_filter': dst_filter,
+                            'link_state': link_state,
                         })
                     except Exception as e:
                         logging.error(f"Error getting settings for interface {interface_name}: {str(e)}")
@@ -503,6 +505,7 @@ def list_interfaces():
                             'nat_status': False,
                             'src_filter': None,
                             'dst_filter': None,
+                            'link_state': None,
                         })
         
         except json.JSONDecodeError as e:
@@ -1592,6 +1595,38 @@ def exec_ip_addr(action, interface, address):
     return result.returncode == 0, result.stderr.strip()
 
 
+def get_link_state(interface):
+    """Return True if the interface is UP (operstate up or flags contain UP), False otherwise."""
+    try:
+        operstate_path = f'/sys/class/net/{interface}/operstate'
+        with open(operstate_path, 'r') as f:
+            state = f.read().strip().lower()
+        # 'up' means fully up; 'unknown' is common for loopback and some virtual ifaces
+        # We check flags too for admin state (UP flag in /sys/class/net/<iface>/flags)
+        flags_path = f'/sys/class/net/{interface}/flags'
+        with open(flags_path, 'r') as f:
+            flags = int(f.read().strip(), 16)
+        # IFF_UP = 0x1
+        return bool(flags & 0x1)
+    except Exception as e:
+        logging.error(f"Error reading link state for {interface}: {e}")
+        return None
+
+
+def set_link_state(interface, state):
+    """
+    Bring interface up or down via 'sudo ip link set <iface> up|down'.
+    state: 'up' or 'down'
+    Returns (success, stderr).
+    """
+    if state not in ('up', 'down'):
+        return False, 'Invalid state — must be "up" or "down"'
+    cmd = ['sudo', 'ip', 'link', 'set', interface, state]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    log_command(cmd, result.stdout + result.stderr)
+    return result.returncode == 0, result.stderr.strip()
+
+
 def get_mtu(interface):
     """Return current MTU for interface as an int, or None on failure."""
     try:
@@ -1633,6 +1668,7 @@ def interface_detail(name):
         tcpdump_available = is_tcpdump_available()
         iptables_available = is_iptables_available()
         nat_status = get_nat_status(name)
+        link_state = get_link_state(name)
         cfg = load_admin_config()
         iface_ov = cfg.get('interface_overrides', {}).get(name, {})
         tools_column_disabled = cfg.get('disable_tools_column', False)
@@ -1655,6 +1691,7 @@ def interface_detail(name):
                                tcpdump_available=tcpdump_available,
                                iptables_available=iptables_available,
                                nat_status=nat_status,
+                               link_state=link_state,
                                tools_column_disabled=tools_column_disabled,
                                disable_interface_ips=cfg.get('disable_interface_ips', False),
                                disable_mtu=cfg.get('disable_mtu', False),
@@ -1673,6 +1710,33 @@ def interface_stats(name):
     if stats is None:
         return jsonify({'error': f'Interface {name} not found in /proc/net/dev'}), 404
     return jsonify(stats)
+
+
+@app.route('/interface/<name>/set_link', methods=['POST'])
+def interface_set_link(name):
+    """Bring an interface up or down."""
+    cfg = load_admin_config()
+    iface_ov = cfg.get('interface_overrides', {}).get(name, {})
+    if iface_ov.get('hide_link_ctrl'):
+        flash("Link up/down control is disabled for this interface by admin.", "error")
+        redirect_to = request.form.get('redirect_to', '')
+        if redirect_to == 'interface_detail':
+            return redirect(url_for('interface_detail', name=name))
+        return redirect(url_for('index'))
+    state = request.form.get('state', '').lower()
+    if state not in ('up', 'down'):
+        flash("Invalid link state requested.", "error")
+        return redirect(url_for('index'))
+    ok, err = set_link_state(name, state)
+    display = get_interface_alias(name)
+    if ok:
+        flash(f"Interface {display} brought {state}.", "success")
+    else:
+        flash(f"Failed to bring {display} {state}: {err}", "error")
+    redirect_to = request.form.get('redirect_to', '')
+    if redirect_to == 'interface_detail':
+        return redirect(url_for('interface_detail', name=name))
+    return redirect(url_for('index'))
 
 
 @app.route('/interface/<name>/add_addr', methods=['POST'])
@@ -1815,6 +1879,7 @@ def admin_save():
             'hide_loss':      f'hide_loss_{iface}'      in request.form,
             'hide_bandwidth': f'hide_bandwidth_{iface}' in request.form,
             'hide_filter':    f'hide_filter_{iface}'    in request.form,
+            'hide_link_ctrl': f'hide_link_ctrl_{iface}' in request.form,
         }
         alias = request.form.get(f'alias_{iface}', '').strip()
         if alias:
