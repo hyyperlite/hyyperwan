@@ -842,81 +842,106 @@ code {
 }
 
 /* --------------------------------------------------------------------------
-   20. Link Up/Down controls
+   20. Link Up/Down controls — dots in interface name cell + heading
    -------------------------------------------------------------------------- */
 
-/* Tools cell button — link state toggle (same compact size as NAT/Capture) */
-.link-state-btn {
+/* Small coloured dot button (clickable = admin toggle, static = oper state) */
+.link-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 10px;
     white-space: nowrap;
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 3px 8px;
-    border-radius: var(--radius);
+    vertical-align: middle;
+}
+button.link-dot {
     border: none;
     cursor: pointer;
     transition: opacity var(--transition);
 }
-.link-state-btn.link-up {
+button.link-dot:hover { opacity: 0.75; }
+
+.link-dot-static {
+    cursor: default;
+}
+
+/* Admin UP — green */
+.link-dot-up {
     background: var(--success-bg);
     color: var(--success-text);
     border: 1px solid var(--success-border);
 }
-.link-state-btn.link-up:hover:not(:disabled) {
-    opacity: 0.80;
-}
-.link-state-btn.link-down {
+/* Admin DOWN — red */
+.link-dot-down {
     background: var(--error-bg);
     color: var(--error-text);
     border: 1px solid var(--error-border);
 }
-.link-state-btn.link-down:hover:not(:disabled) {
-    opacity: 0.80;
-}
-.link-state-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-/* Per-interface page — inline heading indicator */
-.link-state-indicator {
-    font-size: 0.8rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 10px;
-    white-space: nowrap;
-    letter-spacing: 0.03em;
-}
-.link-state-indicator.link-up {
+/* Oper UP — green (same as admin up) */
+.link-dot-oper-up {
     background: var(--success-bg);
     color: var(--success-text);
     border: 1px solid var(--success-border);
 }
-.link-state-indicator.link-down {
+/* Oper DOWN — red (same as admin down) */
+.link-dot-oper-down {
     background: var(--error-bg);
     color: var(--error-text);
     border: 1px solid var(--error-border);
 }
 
-/* Compact text button for bring-up/bring-down on per-interface heading */
-.btn-link-toggle {
-    background: none;
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius);
-    color: var(--text-secondary);
-    font-size: 0.75rem;
-    padding: 2px 8px;
-    cursor: pointer;
-    transition: border-color var(--transition), color var(--transition);
+/* Per-interface page heading state groups */
+.iface-heading-states {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: 6px;
 }
-.btn-link-toggle:hover {
-    border-color: var(--accent-light);
-    color: var(--text-primary);
+.iface-state-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.iface-state-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
 }
 
 .link-ctrl-disabled {
     font-size: 0.72rem;
     color: var(--text-muted);
     font-style: italic;
+}
+
+/* Status column in interfaces table */
+.status-col-cell {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.link-status-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.link-status-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.link-status-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    min-width: 34px;
 }
 
 /* --------------------------------------------------------------------------

@@ -71,6 +71,7 @@
             <thead>
                 <tr>
                     <th>Interface</th>
+                    <th>Status</th>
                     <th>IP Address</th>
                     <th style="text-align:center">Latency</th>
                     <th style="text-align:center">Loss</th>
@@ -104,8 +105,45 @@
                     {% endif %}
                 </td>
 
+                <!-- Status column: admin state + oper/link state -->
+                {% set ls = interface.link_state %}
+                {% set ov = iface_overrides.get(interface.name, {}) %}
+                <td class="status-col-cell">
+                    {% if ls %}
+                    <div class="link-status-stack">
+                        <div class="link-status-row">
+                            <span class="link-status-label">Admin</span>
+                            {% if not ov.get('hide_link_ctrl') %}
+                            <form action="{{ url_for('interface_set_link', name=interface.name) }}" method="POST" style="display:inline;"
+                                  onsubmit="return confirm('Bring {{ interface.alias if interface.alias else interface.name }} admin {{ 'DOWN' if ls.admin_up else 'UP' }}?')">
+                                <input type="hidden" name="state" value="{{ 'down' if ls.admin_up else 'up' }}">
+                                <button type="submit" class="link-dot {% if ls.admin_up %}link-dot-up{% else %}link-dot-down{% endif %}"
+                                        title="Admin state: {{ 'UP' if ls.admin_up else 'DOWN' }} — click to bring {{ 'down' if ls.admin_up else 'up' }}">
+                                    &#9679; {{ 'UP' if ls.admin_up else 'DOWN' }}
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="link-dot link-dot-static {% if ls.admin_up %}link-dot-up{% else %}link-dot-down{% endif %}"
+                                  title="Admin state: {{ 'UP' if ls.admin_up else 'DOWN' }} (link control disabled by admin)">
+                                &#9679; {{ 'UP' if ls.admin_up else 'DOWN' }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="link-status-row">
+                            <span class="link-status-label">Link</span>
+                            <span class="link-dot link-dot-static {% if ls.oper_up %}link-dot-oper-up{% else %}link-dot-oper-down{% endif %}"
+                                  title="Oper state: {{ ls.operstate }}">
+                                &#9679; {{ ls.operstate | upper }}
+                            </span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <span style="color:var(--text-muted); font-size:0.78rem;">—</span>
+                    {% endif %}
+                </td>
+
                 <!-- IP Address -->
-                <td><span class="ip-addr">{{ interface.ip }}</span></td>
+                <td><span class="ip-addr">{{ interface.ip if interface.ip else '—' }}</span></td>
 
                 <!-- Status badges -->
                 <td class="status-cell">
@@ -226,32 +264,13 @@
                         <button class="btn btn-sm" disabled title="iptables not available">NAT N/A</button>
                         {% endif %}
 
-                        {# Link Up/Down toggle #}
-                        {% if ov.get('hide_link_ctrl') %}
-                        <button type="button"
-                                class="btn btn-sm link-state-btn {% if interface.link_state %}link-up{% else %}link-down{% endif %}"
-                                disabled
-                                title="Link control is disabled for this interface by admin. Current state: {{ 'UP' if interface.link_state else 'DOWN' }}">
-                            {{ 'Link UP' if interface.link_state else 'Link DOWN' }}
-                        </button>
-                        {% else %}
-                        <form action="{{ url_for('interface_set_link', name=interface.name) }}" method="POST"
-                              onsubmit="return confirm('Bring {{ interface.alias if interface.alias else interface.name }} link {{ 'DOWN' if interface.link_state else 'UP' }}?')">
-                            <input type="hidden" name="state" value="{{ 'down' if interface.link_state else 'up' }}">
-                            <button type="submit"
-                                    class="btn btn-sm link-state-btn {% if interface.link_state %}link-up{% else %}link-down{% endif %}"
-                                    title="Interface link is currently {{ 'UP' if interface.link_state else 'DOWN' }} — click to bring {{ 'down' if interface.link_state else 'up' }}">
-                                {{ 'Link UP' if interface.link_state else 'Link DOWN' }}
-                            </button>
-                        </form>
-                        {% endif %}
                     </div>
                 </td>
                 {% endif %}
             </tr>
             {% endfor %}
             {% if not interfaces %}
-            <tr><td colspan="8" class="no-data">No interfaces found</td></tr>
+            <tr><td colspan="9" class="no-data">No interfaces found</td></tr>
             {% endif %}
             </tbody>
         </table>

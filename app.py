@@ -467,46 +467,45 @@ def list_interfaces():
                     if addr_info['family'] == 'inet':
                         ip_address = addr_info['local']
                         break
-                if ip_address:
-                    try:
-                        # Get current network condition settings
-                        latency, loss, jitter, bandwidth = get_qdisc_settings(interface_name)
-                        src_filter, dst_filter = get_qdisc_filter(interface_name)
-                        nat_status = get_nat_status(interface_name)
-                        bw_value, bw_unit = split_bandwidth(bandwidth)
-                        link_state = get_link_state(interface_name)
-                        interfaces.append({
-                            'name': interface_name,
-                            'alias': aliases.get(interface_name, ''),
-                            'ip': ip_address,
-                            'latency': latency,
-                            'loss': loss,
-                            'jitter': jitter,
-                            'bandwidth': bandwidth,
-                            'bw_value': bw_value,
-                            'bw_unit': bw_unit,
-                            'nat_status': nat_status,
-                            'src_filter': src_filter,
-                            'dst_filter': dst_filter,
-                            'link_state': link_state,
-                        })
-                    except Exception as e:
-                        logging.error(f"Error getting settings for interface {interface_name}: {str(e)}")
-                        interfaces.append({
-                            'name': interface_name,
-                            'alias': aliases.get(interface_name, ''),
-                            'ip': ip_address,
-                            'latency': '0ms',
-                            'loss': '0%',
-                            'jitter': '0ms',
-                            'bandwidth': None,
-                            'bw_value': '',
-                            'bw_unit': 'mbit',
-                            'nat_status': False,
-                            'src_filter': None,
-                            'dst_filter': None,
-                            'link_state': None,
-                        })
+                try:
+                    # Get current network condition settings
+                    latency, loss, jitter, bandwidth = get_qdisc_settings(interface_name)
+                    src_filter, dst_filter = get_qdisc_filter(interface_name)
+                    nat_status = get_nat_status(interface_name)
+                    bw_value, bw_unit = split_bandwidth(bandwidth)
+                    link_state = get_link_state(interface_name)
+                    interfaces.append({
+                        'name': interface_name,
+                        'alias': aliases.get(interface_name, ''),
+                        'ip': ip_address or '',
+                        'latency': latency,
+                        'loss': loss,
+                        'jitter': jitter,
+                        'bandwidth': bandwidth,
+                        'bw_value': bw_value,
+                        'bw_unit': bw_unit,
+                        'nat_status': nat_status,
+                        'src_filter': src_filter,
+                        'dst_filter': dst_filter,
+                        'link_state': link_state,
+                    })
+                except Exception as e:
+                    logging.error(f"Error getting settings for interface {interface_name}: {str(e)}")
+                    interfaces.append({
+                        'name': interface_name,
+                        'alias': aliases.get(interface_name, ''),
+                        'ip': ip_address or '',
+                        'latency': '0ms',
+                        'loss': '0%',
+                        'jitter': '0ms',
+                        'bandwidth': None,
+                        'bw_value': '',
+                        'bw_unit': 'mbit',
+                        'nat_status': False,
+                        'src_filter': None,
+                        'dst_filter': None,
+                        'link_state': get_link_state(interface_name),
+                    })
         
         except json.JSONDecodeError as e:
             logging.error(f"Error parsing JSON output from ip command: {str(e)}")
@@ -1596,18 +1595,27 @@ def exec_ip_addr(action, interface, address):
 
 
 def get_link_state(interface):
-    """Return True if the interface is UP (operstate up or flags contain UP), False otherwise."""
+    """
+    Return a dict with admin_up (bool) and oper_up (bool).
+    admin_up: IFF_UP flag set in /sys/class/net/<iface>/flags
+    oper_up:  /sys/class/net/<iface>/operstate == 'up'
+              ('unknown' is treated as up for virtual/loopback interfaces
+               that don't report proper operstate)
+    Returns None on error.
+    """
     try:
-        operstate_path = f'/sys/class/net/{interface}/operstate'
-        with open(operstate_path, 'r') as f:
-            state = f.read().strip().lower()
-        # 'up' means fully up; 'unknown' is common for loopback and some virtual ifaces
-        # We check flags too for admin state (UP flag in /sys/class/net/<iface>/flags)
         flags_path = f'/sys/class/net/{interface}/flags'
         with open(flags_path, 'r') as f:
             flags = int(f.read().strip(), 16)
-        # IFF_UP = 0x1
-        return bool(flags & 0x1)
+        admin_up = bool(flags & 0x1)  # IFF_UP
+
+        operstate_path = f'/sys/class/net/{interface}/operstate'
+        with open(operstate_path, 'r') as f:
+            operstate = f.read().strip().lower()
+        # 'up' = fully up, 'unknown' = virtual/loopback with no carrier sense
+        oper_up = operstate in ('up', 'unknown')
+
+        return {'admin_up': admin_up, 'oper_up': oper_up, 'operstate': operstate}
     except Exception as e:
         logging.error(f"Error reading link state for {interface}: {e}")
         return None
