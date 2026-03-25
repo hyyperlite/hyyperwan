@@ -145,6 +145,24 @@
 }
 
 /* --------------------------------------------------------------------------
+   3. Light theme — link dot pill style
+   -------------------------------------------------------------------------- */
+[data-theme="light"] .link-dot-up,
+[data-theme="light"] .link-dot-oper-up {
+    background: var(--success-bg);
+    border: 1px solid var(--success-border) !important;
+    border-radius: 10px;
+    padding: 1px 6px;
+}
+[data-theme="light"] .link-dot-down,
+[data-theme="light"] .link-dot-oper-down {
+    background: var(--error-bg);
+    border: 1px solid var(--error-border) !important;
+    border-radius: 10px;
+    padding: 1px 6px;
+}
+
+/* --------------------------------------------------------------------------
    4. Reset & Base
    -------------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -861,29 +879,41 @@ code {
     vertical-align: middle;
 }
 button.link-dot {
-    border: none;
+    border: none !important;
     cursor: pointer;
     transition: opacity var(--transition);
 }
 button.link-dot:hover { opacity: 0.75; }
+
+/* Strip default form margins so it aligns inline with spans */
+form:has(button.link-dot) {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}
 
 .link-dot-static {
     cursor: default;
     border: none;
 }
 
-/* Admin UP / Oper UP — green text, no background/border */
+/* Admin UP / Oper UP — green pill, no border */
 .link-dot-up,
 .link-dot-oper-up {
-    background: none;
+    background: var(--success-bg);
     border: none;
+    border-radius: 10px;
+    padding: 1px 6px;
     color: var(--success-text);
 }
-/* Admin DOWN / Oper DOWN — red text, no background/border */
+/* Admin DOWN / Oper DOWN — red pill, no border */
 .link-dot-down,
 .link-dot-oper-down {
-    background: none;
+    background: var(--error-bg);
     border: none;
+    border-radius: 10px;
+    padding: 1px 6px;
     color: var(--error-text);
 }
 
@@ -927,6 +957,7 @@ button.link-dot:hover { opacity: 0.75; }
     display: flex;
     align-items: center;
     gap: 5px;
+    line-height: 1;
 }
 .link-status-label {
     font-size: 0.68rem;
