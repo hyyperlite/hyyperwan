@@ -853,8 +853,10 @@ code {
     font-size: 0.72rem;
     font-weight: 700;
     line-height: 1;
-    padding: 2px 5px;
-    border-radius: 10px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
     white-space: nowrap;
     vertical-align: middle;
 }
@@ -870,29 +872,19 @@ button.link-dot:hover { opacity: 0.75; }
     border: none;
 }
 
-/* Admin UP — green */
-.link-dot-up {
-    background: var(--success-bg);
-    color: var(--success-text);
-    border: 1px solid var(--success-border);
-}
-/* Admin DOWN — red */
-.link-dot-down {
-    background: var(--error-bg);
-    color: var(--error-text);
-    border: 1px solid var(--error-border);
-}
-/* Oper UP — green (same as admin up) */
+/* Admin UP / Oper UP — green text, no background/border */
+.link-dot-up,
 .link-dot-oper-up {
-    background: var(--success-bg);
+    background: none;
+    border: none;
     color: var(--success-text);
-    border: 1px solid var(--success-border);
 }
-/* Oper DOWN — red (same as admin down) */
+/* Admin DOWN / Oper DOWN — red text, no background/border */
+.link-dot-down,
 .link-dot-oper-down {
-    background: var(--error-bg);
+    background: none;
+    border: none;
     color: var(--error-text);
-    border: 1px solid var(--error-border);
 }
 
 /* Per-interface page heading state groups */
