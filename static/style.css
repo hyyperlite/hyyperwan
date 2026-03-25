@@ -867,6 +867,7 @@ button.link-dot:hover { opacity: 0.75; }
 
 .link-dot-static {
     cursor: default;
+    border: none;
 }
 
 /* Admin UP — green */
