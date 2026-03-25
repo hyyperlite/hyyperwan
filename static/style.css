@@ -20,10 +20,10 @@
     --text-secondary: #9a9a9a;
     --text-muted:     #5a5a5a;
 
-    --accent:         #c0392b;
-    --accent-light:   #e74c3c;
+    --accent:         #cc0000;
+    --accent-light:   #cc0000;
     --accent-dim:     #7d1f14;
-    --accent-glow:    rgba(192, 57, 43, 0.18);
+    --accent-glow:    rgba(204, 0, 0, 0.18);
 
     --border:         #272727;
     --border-strong:  #3a3a3a;
@@ -45,7 +45,7 @@
     --warning-border: #d97706;
 
     --nav-bg:         #090909;
-    --nav-border:     #c0392b;
+    --nav-border:     #cc0000;
     --nav-height:     52px;
 
     --btn-primary-bg:    #961e14;
@@ -95,8 +95,8 @@
     --text-secondary: #555555;
     --text-muted:     #888888;
 
-    --accent:         #c0392b;
-    --accent-light:   #e74c3c;
+    --accent:         #1565c0;
+    --accent-light:   #1565c0;
     --accent-dim:     #fde8e6;
     --accent-glow:    rgba(192, 57, 43, 0.1);
 
@@ -120,7 +120,7 @@
     --warning-border: #f59e0b;
 
     --nav-bg:         #1a1a1a;
-    --nav-border:     #c0392b;
+    --nav-border:     #1565c0;
 
     --btn-primary-bg:     #1565c0;
     --btn-primary-hover:  #1e88e5;
@@ -732,6 +732,10 @@ td {
     border: 1px solid #961e14 !important;
 }
 .btn-reset-all:hover:not(:disabled) { background: rgba(176, 36, 24, 0.35) !important; }
+
+/* Light theme — keep navbar title and divider red to match logo */
+[data-theme="light"] .navbar { border-bottom-color: #cc0000; }
+[data-theme="light"] .navbar-brand { color: #cc0000; }
 
 /* Light theme overrides — ghost pill on light background */
 [data-theme="light"] .btn-capture {
