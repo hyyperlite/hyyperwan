@@ -595,32 +595,89 @@ td {
     transform: none !important;
 }
 
-.btn-primary   { background: var(--btn-primary-bg);   color: #fff; }
-.btn-primary:hover:not(:disabled)   { background: var(--btn-primary-hover); }
+/* Dark theme: red-hue ghost pill. Light theme: blue-hue ghost pill (overrides below) */
+.btn-primary {
+    background: rgba(150, 30, 20, 0.2);
+    color: #f87171;
+    border: 1px solid #961e14;
+}
+.btn-primary:hover:not(:disabled) { background: rgba(176, 36, 24, 0.35); }
 
-.btn-secondary { background: var(--btn-secondary-bg); color: var(--text-secondary); }
+.btn-secondary { background: var(--btn-secondary-bg); color: var(--text-secondary); border: 1px solid var(--border); }
 .btn-secondary:hover:not(:disabled) { background: var(--btn-secondary-hover); color: var(--text-primary); }
 
 .btn-success   { background: var(--btn-success-bg);   color: #fff; }
 .btn-success:hover:not(:disabled)   { background: var(--btn-success-hover); }
 
-.btn-info      { background: var(--btn-info-bg);      color: #fff; }
-.btn-info:hover:not(:disabled)      { background: var(--btn-info-hover); }
+.btn-info {
+    background: rgba(15, 52, 96, 0.3);
+    color: #60a5fa;
+    border: 1px solid #1a4a80;
+}
+.btn-info:hover:not(:disabled) { background: rgba(26, 74, 128, 0.5); }
 
-.btn-danger    { background: var(--btn-danger-bg);    color: #fff; }
-.btn-danger:hover:not(:disabled)    { background: var(--btn-danger-hover); }
+.btn-danger {
+    background: rgba(150, 30, 20, 0.2);
+    color: #f87171;
+    border: 1px solid #961e14;
+}
+.btn-danger:hover:not(:disabled) { background: rgba(176, 36, 24, 0.35); }
 
-.btn-remove { background: var(--btn-remove-bg); color: #fff; }
-.btn-remove:hover:not(:disabled)   { background: var(--btn-remove-hover); }
+.btn-remove {
+    background: rgba(150, 30, 20, 0.2);
+    color: #f87171;
+    border: 1px solid #961e14;
+}
+.btn-remove:hover:not(:disabled) { background: rgba(176, 36, 24, 0.35); }
 
 .btn-sm { padding: 3px 9px; font-size: 0.75rem; }
 .btn-lg { padding: 9px 22px; font-size: 0.95rem; }
 
 /* alias form save/cancel buttons */
-.alias-save-btn   { background: var(--btn-primary-bg); color: #fff; }
-.alias-save-btn:hover { background: var(--btn-primary-hover); }
-.alias-cancel-btn { background: var(--btn-secondary-bg); color: var(--text-secondary); }
+.alias-save-btn {
+    background: rgba(150, 30, 20, 0.2);
+    color: #f87171;
+    border: 1px solid #961e14;
+}
+.alias-save-btn:hover { background: rgba(176, 36, 24, 0.35); }
+.alias-cancel-btn { background: var(--btn-secondary-bg); color: var(--text-secondary); border: 1px solid var(--border); }
 .alias-cancel-btn:hover { background: var(--btn-secondary-hover); color: var(--text-primary); }
+
+/* Light theme: blue-hue ghost pill for all action buttons */
+[data-theme="light"] .btn-primary {
+    background: rgba(21, 101, 192, 0.08);
+    color: #1565c0;
+    border: 1px solid #1565c0;
+}
+[data-theme="light"] .btn-primary:hover:not(:disabled) { background: rgba(21, 101, 192, 0.18); }
+
+[data-theme="light"] .btn-info {
+    background: rgba(21, 101, 192, 0.08);
+    color: #1565c0;
+    border: 1px solid #1565c0;
+}
+[data-theme="light"] .btn-info:hover:not(:disabled) { background: rgba(21, 101, 192, 0.18); }
+
+[data-theme="light"] .btn-danger {
+    background: rgba(21, 101, 192, 0.08);
+    color: #1565c0;
+    border: 1px solid #1565c0;
+}
+[data-theme="light"] .btn-danger:hover:not(:disabled) { background: rgba(21, 101, 192, 0.18); }
+
+[data-theme="light"] .btn-remove {
+    background: rgba(21, 101, 192, 0.08);
+    color: #1565c0;
+    border: 1px solid #1565c0;
+}
+[data-theme="light"] .btn-remove:hover:not(:disabled) { background: rgba(21, 101, 192, 0.18); }
+
+[data-theme="light"] .alias-save-btn {
+    background: rgba(21, 101, 192, 0.08);
+    color: #1565c0;
+    border: 1px solid #1565c0;
+}
+[data-theme="light"] .alias-save-btn:hover { background: rgba(21, 101, 192, 0.18); }
 
 /* --------------------------------------------------------------------------
    15. Tools cell (capture / NAT)
@@ -639,46 +696,63 @@ td {
  * Light theme: brighter shades for contrast on white backgrounds
  */
 
-/* Dark theme (default) */
+/* Dark theme (default) — ghost pill style */
 .btn-capture {
-    background: #0f3460 !important;
-    color: #fff !important;
+    background: rgba(15, 52, 96, 0.3) !important;
+    color: #60a5fa !important;
+    border: 1px solid #1a4a80 !important;
 }
-.btn-capture:hover:not(:disabled) { background: #1a4a80 !important; }
+.btn-capture:hover:not(:disabled) { background: rgba(26, 74, 128, 0.5) !important; }
 
 .nat-on {
-    background: #15803d !important;
-    color: #fff !important;
+    background: rgba(21, 128, 61, 0.2) !important;
+    color: #4ade80 !important;
+    border: 1px solid #15803d !important;
 }
-.nat-on:hover:not(:disabled) { background: #16a34a !important; }
+.nat-on:hover:not(:disabled) { background: rgba(22, 163, 74, 0.35) !important; }
 
 .nat-off {
-    background: #961e14 !important;
-    color: #fff !important;
+    background: rgba(150, 30, 20, 0.2) !important;
+    color: #f87171 !important;
+    border: 1px solid #961e14 !important;
 }
-.nat-off:hover:not(:disabled) { background: #b02418 !important; }
+.nat-off:hover:not(:disabled) { background: rgba(176, 36, 24, 0.35) !important; }
 
 .btn-reset-all {
-    background: #961e14 !important;
-    color: #fff !important;
+    background: rgba(150, 30, 20, 0.2) !important;
+    color: #f87171 !important;
+    border: 1px solid #961e14 !important;
 }
-.btn-reset-all:hover:not(:disabled) { background: #b02418 !important; }
+.btn-reset-all:hover:not(:disabled) { background: rgba(176, 36, 24, 0.35) !important; }
 
-/* Light theme overrides — brighter for white backgrounds */
+/* Light theme overrides — ghost pill on light background */
 [data-theme="light"] .btn-capture {
-    background: #1565c0 !important;
+    background: rgba(21, 101, 192, 0.08) !important;
+    color: #1565c0 !important;
+    border: 1px solid #1565c0 !important;
 }
-[data-theme="light"] .btn-capture:hover:not(:disabled) { background: #1e88e5 !important; }
+[data-theme="light"] .btn-capture:hover:not(:disabled) { background: rgba(21, 101, 192, 0.18) !important; }
+
+[data-theme="light"] .nat-on {
+    background: rgba(21, 128, 61, 0.08) !important;
+    color: #15803d !important;
+    border: 1px solid #15803d !important;
+}
+[data-theme="light"] .nat-on:hover:not(:disabled) { background: rgba(21, 128, 61, 0.18) !important; }
 
 [data-theme="light"] .nat-off {
-    background: #c0392b !important;
+    background: rgba(192, 57, 43, 0.08) !important;
+    color: #c0392b !important;
+    border: 1px solid #c0392b !important;
 }
-[data-theme="light"] .nat-off:hover:not(:disabled) { background: #e74c3c !important; }
+[data-theme="light"] .nat-off:hover:not(:disabled) { background: rgba(192, 57, 43, 0.18) !important; }
 
 [data-theme="light"] .btn-reset-all {
-    background: #1565c0 !important;
+    background: rgba(21, 101, 192, 0.08) !important;
+    color: #1565c0 !important;
+    border: 1px solid #1565c0 !important;
 }
-[data-theme="light"] .btn-reset-all:hover:not(:disabled) { background: #1e88e5 !important; }
+[data-theme="light"] .btn-reset-all:hover:not(:disabled) { background: rgba(21, 101, 192, 0.18) !important; }
 
 .tool-unavailable {
     font-size: 0.72rem;
