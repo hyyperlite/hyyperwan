@@ -199,12 +199,20 @@ a:hover { text-decoration: underline; }
 }
 
 .navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 1.25rem;
     font-weight: 700;
     letter-spacing: 0.03em;
     color: var(--accent-light);
     white-space: nowrap;
     flex-shrink: 0;
+}
+.navbar-logo {
+    height: 28px;
+    width: 28px;
+    border-radius: 5px;
 }
 
 .navbar-links {

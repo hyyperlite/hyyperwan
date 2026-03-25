@@ -11,7 +11,7 @@
         })();
     </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <style>
@@ -209,7 +209,7 @@
 
 <!-- Navbar -->
 <nav class="navbar">
-    <span class="navbar-brand">HyyperWAN</span>
+    <span class="navbar-brand"><img src="{{ url_for('static', filename='img/favicon-transparent.svg') }}" alt="" class="navbar-logo">HyyperWAN</span>
     <div class="navbar-links">
         <a href="{{ url_for('index') }}" class="nav-link">Interfaces</a>
         <a href="{{ url_for('routes_page') }}" class="nav-link">Routes</a>
