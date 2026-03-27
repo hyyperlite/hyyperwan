@@ -4,6 +4,9 @@ HyyperWAN is a web application for emulating WAN conditions on Linux systems. It
 
 <img src="docs/images/interfaces.png" alt="HyyperWAN Interfaces" width="900">
 
+<br>
+<img src="docs/images/interfaces-light.png" alt="HyyperWAN Interfaces" width="900">
+
 ---
 
 ## What's New
